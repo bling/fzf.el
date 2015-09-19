@@ -7,6 +7,7 @@
 ;; Description: A front-end for fzf
 ;; Created: 2015-09-18
 ;; Version: 0.0.1
+;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: fzf fuzzy search
 ;;
 ;; This file is not part of GNU Emacs.
