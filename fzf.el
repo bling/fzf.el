@@ -87,7 +87,9 @@
 (defun fzf ()
   "Starts a fzf session."
   (interactive)
-  (fzf/start default-directory))
+  (if (fboundp #'projectile-project-root)
+      (fzf/start (projectile-project-root))
+    (fzf/start default-directory)))
 
 ;;;###autoload
 (defun fzf-directory (directory)
