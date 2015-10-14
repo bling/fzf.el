@@ -78,7 +78,7 @@
     (let ((buf (get-buffer-create "*fzf*")))
       (split-window-vertically fzf/window-height)
       (if fzf/args
-          (make-term "fzf" fzf/executable nil fzf/args)
+          (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
         (make-term "fzf" fzf/executable))
       (switch-to-buffer buf)
       (term-char-mode)
