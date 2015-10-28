@@ -81,6 +81,12 @@
           (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
         (make-term "fzf" fzf/executable))
       (switch-to-buffer buf)
+
+      ;; disable various settings known to cause artifacts, see #1 for more details
+      (setq-local scroll-margin 0)
+      (setq-local scroll-conservatively 0)
+      (face-remap-add-relative 'mode-line '(:box nil))
+
       (term-char-mode)
       (setq mode-line-format (format "   FZF  %s" directory)))))
 
