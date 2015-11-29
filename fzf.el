@@ -95,7 +95,10 @@
   "Starts a fzf session."
   (interactive)
   (if (fboundp #'projectile-project-root)
-      (fzf/start (projectile-project-root))
+      (fzf/start (condition-case err
+                     (projectile-project-root)
+                   (error
+                    default-directory)))
     (fzf/start default-directory)))
 
 ;;;###autoload
