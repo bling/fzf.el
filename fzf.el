@@ -85,6 +85,7 @@
       ;; disable various settings known to cause artifacts, see #1 for more details
       (setq-local scroll-margin 0)
       (setq-local scroll-conservatively 0)
+      (setq-local term-suppress-hard-newline t) ;for paths wider than the window
       (face-remap-add-relative 'mode-line '(:box nil))
 
       (term-char-mode)
