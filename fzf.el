@@ -44,7 +44,7 @@
   "Configuration options for fzf.el"
   :group 'convenience)
 
-(defcustom fzf/window-height -10
+(defcustom fzf/window-height 10
   "The window height of the fzf buffer"
   :type 'integer
   :group 'fzf)
@@ -59,6 +59,12 @@
   :type 'string
   :group 'fzf)
 
+(defcustom fzf/position-bottom t
+  "Set the position of the fzf window. Set to nil to position on top."
+  :type 'bool
+  :group 'fzf)
+
+(setq fzf/window-position "top")
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
          (lines (split-string text "\n" t "\s.*\s"))
@@ -75,9 +81,10 @@
     (require 'term)
     (window-configuration-to-register :fzf-windows)
     (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
-    (let ((buf (get-buffer-create "*fzf*")))
-      (split-window-vertically fzf/window-height)
-      (other-window 1)
+    (let ((buf (get-buffer-create "*fzf*"))
+	  (window-height (if fzf/position-bottom (- fzf/window-height) fzf/window-height)))
+      (split-window-vertically window-height)
+      (when fzf/position-bottom (other-window 1))
       (if fzf/args
           (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
         (make-term "fzf" fzf/executable))
