@@ -44,7 +44,7 @@
   "Configuration options for fzf.el"
   :group 'convenience)
 
-(defcustom fzf/window-height 15
+(defcustom fzf/window-height -10
   "The window height of the fzf buffer"
   :type 'integer
   :group 'fzf)
@@ -77,15 +77,18 @@
     (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
     (let ((buf (get-buffer-create "*fzf*")))
       (split-window-vertically fzf/window-height)
+      (other-window 1)
       (if fzf/args
           (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
         (make-term "fzf" fzf/executable))
       (switch-to-buffer buf)
+      (linum-mode 0)
+      (set-window-margins nil 1)
 
       ;; disable various settings known to cause artifacts, see #1 for more details
       (setq-local scroll-margin 0)
       (setq-local scroll-conservatively 0)
-      (setq-local term-suppress-hard-newline t) ;for paths wider than the window
+      (setq-local term-suppress-hard-newline t)
       (face-remap-add-relative 'mode-line '(:box nil))
 
       (term-char-mode)
