@@ -64,7 +64,6 @@
   :type 'bool
   :group 'fzf)
 
-(setq fzf/window-position "top")
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
          (lines (split-string text "\n" t "\s.*\s"))
