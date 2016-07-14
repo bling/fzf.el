@@ -44,7 +44,7 @@
   "Configuration options for fzf.el"
   :group 'convenience)
 
-(defcustom fzf/window-height 10
+(defcustom fzf/window-height 15
   "The window height of the fzf buffer"
   :type 'integer
   :group 'fzf)
