@@ -54,7 +54,7 @@
   :type 'string
   :group 'fzf)
 
-(defcustom fzf/args "-x"
+(defcustom fzf/args "-x --color bw --margin 1,0"
   "Additional arguments to pass into fzf."
   :type 'string
   :group 'fzf)
