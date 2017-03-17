@@ -3,6 +3,7 @@
 ;; Copyright (C) 2015 by Bailey Ling
 ;; Author: Bailey Ling
 ;; URL: https://github.com/bling/fzf.el
+;; Package-Version: 20161226.936
 ;; Filename: fzf.el
 ;; Description: A front-end for fzf
 ;; Created: 2015-09-18
@@ -54,7 +55,8 @@
   :type 'string
   :group 'fzf)
 
-(defcustom fzf/args "-x --color bw --margin 1,0"
+;; (defcustom fzf/args "-x --color bw --margin 1,0"
+(defcustom fzf/args "-x --color bw --print-query"
   "Additional arguments to pass into fzf."
   :type 'string
   :group 'fzf)
@@ -66,11 +68,15 @@
 
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
-         (lines (split-string text "\n" t "\s*>\s*"))
+         (lines (split-string text "\n" t "\s*>\s+"))
          (target (car (last (butlast lines 1))))
          (file (expand-file-name (string-trim target))))
     (kill-buffer "*fzf*")
     (jump-to-register :fzf-windows)
+    (message (concat "text: " text))
+    (message (concat "last of lines: " (car (last lines))))
+    (message (concat "target: " target))
+    (message (concat "File path to open: " file))
     (when (file-exists-p file)
       (find-file file)))
   (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
@@ -105,6 +111,7 @@
 (defun fzf ()
   "Starts a fzf session."
   (interactive)
+  (message "fzf start")
   (if (fboundp #'projectile-project-root)
       (fzf/start (condition-case err
                      (projectile-project-root)
