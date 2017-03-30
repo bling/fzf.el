@@ -64,6 +64,20 @@
   :type 'bool
   :group 'fzf)
 
+(defun fzf/pipe-into-fzf (entries)
+  "`entries' is a list of strings that is piped into `fzf' as a source."
+  (interactive)
+  (let ((process-environment
+         (cons (concat "FZF_DEFAULT_COMMAND=echo " "\""
+                       (mapconcat
+                        (lambda (entry)
+                          entry)
+                        entries
+                        "\n")
+                       "\"")
+               process-environment)))
+    (fzf)))
+
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
          (lines (split-string text "\n" t "\s.*\s"))
@@ -117,6 +131,12 @@
   "Starts a fzf session at the specified directory."
   (interactive "D")
   (fzf/start directory))
+
+;;;###autoload
+(defun fzf-recentf ()
+  "Starts a fzf session with recent files as a source."
+  (interactive)
+  (fzf/pipe-into-fzf recentf-list))
 
 (provide 'fzf)
 ;;; fzf.el ends here
