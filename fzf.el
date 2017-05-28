@@ -3,7 +3,6 @@
 ;; Copyright (C) 2015 by Bailey Ling
 ;; Author: Bailey Ling
 ;; URL: https://github.com/bling/fzf.el
-;; Package-Version: 20161226.936
 ;; Filename: fzf.el
 ;; Description: A front-end for fzf
 ;; Created: 2015-09-18
@@ -55,7 +54,6 @@
   :type 'string
   :group 'fzf)
 
-;; (defcustom fzf/args "-x --color bw --margin 1,0"
 (defcustom fzf/args "-x --color bw --print-query"
   "Additional arguments to pass into fzf."
   :type 'string
@@ -107,7 +105,6 @@
 (defun fzf ()
   "Starts a fzf session."
   (interactive)
-  (message "fzf start")
   (if (fboundp #'projectile-project-root)
       (fzf/start (condition-case err
                      (projectile-project-root)
