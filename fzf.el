@@ -54,7 +54,7 @@
   :type 'string
   :group 'fzf)
 
-(defcustom fzf/args "-x --color bw --margin 1,0"
+(defcustom fzf/args "-x --color bw --print-query"
   "Additional arguments to pass into fzf."
   :type 'string
   :group 'fzf)
@@ -66,9 +66,9 @@
 
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
-         (lines (split-string text "\n" t "\s.*\s"))
+         (lines (split-string text "\n" t "\s*>\s+"))
          (target (car (last (butlast lines 1))))
-         (file (expand-file-name target)))
+         (file (expand-file-name (string-trim target))))
     (kill-buffer "*fzf*")
     (jump-to-register :fzf-windows)
     (when (file-exists-p file)
