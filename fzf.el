@@ -90,6 +90,7 @@
       (make-term "fzf" fzf/executable))
     (switch-to-buffer buf)
     (linum-mode 0)
+    ;;(set-window-margins nil 1)
 
     ;; disable various settings known to cause artifacts, see #1 for more details
     (setq-local scroll-margin 0)
@@ -112,10 +113,10 @@
     (fzf/start default-directory)))
 
 ;;;###autoload
-(defun fzf-directory (directory)
+(defun fzf-directory ()
   "Starts a fzf session at the specified directory."
-  (interactive "D")
-  (fzf/start directory))
+  (interactive)
+  (fzf/start (ido-read-directory-name "Directory: ")))
 
 (provide 'fzf)
 ;;; fzf.el ends here
