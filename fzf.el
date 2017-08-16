@@ -37,6 +37,7 @@
 ;;
 ;; M-x fzf
 ;; M-x fzf-directory
+;; M-x fzf-git
 ;;
 ;;; Code:
 
@@ -63,6 +64,20 @@
   "Set the position of the fzf window. Set to nil to position on top."
   :type 'bool
   :group 'fzf)
+
+(defcustom fzf/directory-start nil
+  "The path of the default start directory for fzf-directory."
+  :type 'string
+  :group 'fzf)
+
+(require 'cl)
+(defun* fzf/get-closest-git (&optional (file ".git"))
+  (let ((root (expand-file-name "/")))
+    (loop for d = default-directory
+          then (expand-file-name ".." d)
+          if (file-exists-p
+	      (expand-file-name file d)) return d
+          if (equal d root) return nil)))
 
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
@@ -116,7 +131,16 @@
 (defun fzf-directory ()
   "Starts a fzf session at the specified directory."
   (interactive)
-  (fzf/start (ido-read-directory-name "Directory: ")))
+  (fzf/start (ido-read-directory-name "Directory: " fzf/directory-start)))
+
+;;;###autoload
+(defun fzf-git ()
+  "Starts a fzf session at the root of the current git."
+  (interactive)
+  (setq gitpath (fzf/get-closest-git))
+  (if gitpath
+      (fzf/start gitpath)
+    (fzf/start (ido-read-directory-name "Directory: "))))
 
 (provide 'fzf)
 ;;; fzf.el ends here
