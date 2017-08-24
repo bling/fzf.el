@@ -55,9 +55,9 @@
   :type 'string
   :group 'fzf)
 
-(defcustom fzf/args '("-x --color bw --print-query")
+(defcustom fzf/args "-x --color bw --print-query"
   "Additional arguments to pass into fzf."
-  :type 'list
+  :type 'string
   :group 'fzf)
 
 (defcustom fzf/position-bottom t
@@ -101,7 +101,7 @@
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
     (if fzf/args
-        (apply 'make-term "fzf" fzf/executable nil fzf/args)
+        (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
       (make-term "fzf" fzf/executable))
     (switch-to-buffer buf)
     (linum-mode 0)
