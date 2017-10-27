@@ -89,8 +89,9 @@
   (require 'term)
   (window-configuration-to-register :fzf-windows)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
-  (let ((buf (get-buffer-create "*fzf*"))
-        (window-height (if fzf/position-bottom (- fzf/window-height) fzf/window-height)))
+  (let* ((buf (get-buffer-create "*fzf*"))
+         (min-height (min fzf/window-height (/ (window-height) 2)))
+         (window-height (if fzf/position-bottom (- min-height) min-height)))
     (with-current-buffer buf
       (setq default-directory directory))
     (split-window-vertically window-height)
