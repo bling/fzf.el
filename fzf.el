@@ -119,6 +119,15 @@
         (fzf/start path)
       (fzf-directory))))
 
+(defun fzf/git-files ()
+  (let ((process-environment
+         (cons (concat "FZF_DEFAULT_COMMAND=git ls-files")
+               process-environment))
+        (path (locate-dominating-file default-directory ".git")))
+    (if path
+        (fzf/start path)
+      (user-error "Not inside a Git repository"))))
+
 ;;;###autoload
 (defun fzf ()
   "Starts a fzf session."
@@ -141,6 +150,12 @@
   "Starts a fzf session at the root of the current git."
   (interactive)
   (fzf/vcs ".git"))
+
+;;;###autoload
+(defun fzf-git-files ()
+  "Starts a fzf session only searching for git tracked files."
+  (interactive)
+  (fzf/git-files))
 
 ;;;###autoload
 (defun fzf-hg ()
