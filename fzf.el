@@ -91,14 +91,14 @@
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
   (let* ((buf (get-buffer-create "*fzf*"))
          (min-height (min fzf/window-height (/ (window-height) 2)))
-         (window-height (if fzf/position-bottom (- min-height) min-height)))
+         (window-height (if fzf/position-bottom (- min-height) min-height))
+         (window-system-args (when window-system " --margin=1,0"))
+         (fzf-args (concat fzf/args window-system-args)))
     (with-current-buffer buf
       (setq default-directory directory))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
-    (if fzf/args
-        (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
-      (make-term "fzf" fzf/executable))
+    (apply 'make-term "fzf" fzf/executable nil (split-string fzf-args))
     (switch-to-buffer buf)
     (linum-mode 0)
     (visual-line-mode 0)
