@@ -89,15 +89,16 @@
   (require 'term)
   (window-configuration-to-register :fzf-windows)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
-  (let ((buf (get-buffer-create "*fzf*"))
-        (window-height (if fzf/position-bottom (- fzf/window-height) fzf/window-height)))
+  (let* ((buf (get-buffer-create "*fzf*"))
+         (min-height (min fzf/window-height (/ (window-height) 2)))
+         (window-height (if fzf/position-bottom (- min-height) min-height))
+         (window-system-args (when window-system " --margin=1,0"))
+         (fzf-args (concat fzf/args window-system-args)))
     (with-current-buffer buf
       (setq default-directory directory))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
-    (if fzf/args
-        (apply 'make-term "fzf" fzf/executable nil (split-string fzf/args " "))
-      (make-term "fzf" fzf/executable))
+    (apply 'make-term "fzf" fzf/executable nil (split-string fzf-args))
     (switch-to-buffer buf)
     (linum-mode 0)
     (visual-line-mode 0)
@@ -117,6 +118,15 @@
     (if path
         (fzf/start path)
       (fzf-directory))))
+
+(defun fzf/git-files ()
+  (let ((process-environment
+         (cons (concat "FZF_DEFAULT_COMMAND=git ls-files")
+               process-environment))
+        (path (locate-dominating-file default-directory ".git")))
+    (if path
+        (fzf/start path)
+      (user-error "Not inside a Git repository"))))
 
 ;;;###autoload
 (defun fzf ()
@@ -140,6 +150,12 @@
   "Starts a fzf session at the root of the current git."
   (interactive)
   (fzf/vcs ".git"))
+
+;;;###autoload
+(defun fzf-git-files ()
+  "Starts a fzf session only searching for git tracked files."
+  (interactive)
+  (fzf/git-files))
 
 ;;;###autoload
 (defun fzf-hg ()
