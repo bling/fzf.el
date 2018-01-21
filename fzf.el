@@ -74,6 +74,11 @@
   :type 'string
   :group 'fzf)
 
+(defcustom fzf/default-command ""
+  "Default command for fzf to use when input is tty."
+  :type 'string
+  :group 'fzf)
+
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
          (lines (split-string text "\n" t "\s*>\s+"))
@@ -89,29 +94,32 @@
   (require 'term)
   (window-configuration-to-register :fzf-windows)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
-  (let* ((buf (get-buffer-create "*fzf*"))
-         (min-height (min fzf/window-height (/ (window-height) 2)))
-         (window-height (if fzf/position-bottom (- min-height) min-height))
-         (window-system-args (when window-system " --margin=1,0"))
-         (fzf-args (concat fzf/args window-system-args)))
-    (with-current-buffer buf
-      (setq default-directory directory))
-    (split-window-vertically window-height)
-    (when fzf/position-bottom (other-window 1))
-    (apply 'make-term "fzf" fzf/executable nil (split-string fzf-args))
-    (switch-to-buffer buf)
-    (linum-mode 0)
-    (visual-line-mode 0)
+  (with-temp-buffer
+    (let* ((process-environment
+            (cons (format "FZF_DEFAULT_COMMAND=%s" fzf/default-command)
+                  process-environment))
+           (default-directory directory)
+           (buf (get-buffer-create "*fzf*"))
+           (min-height (min fzf/window-height (/ (window-height) 2)))
+           (window-height (if fzf/position-bottom (- min-height) min-height))
+           (window-system-args (when window-system " --margin=1,0"))
+           (fzf-args (concat fzf/args window-system-args)))
+      (split-window-vertically window-height)
+      (when fzf/position-bottom (other-window 1))
+      (apply 'make-term "fzf" fzf/executable nil (split-string fzf-args))
+      (switch-to-buffer buf)
+      (linum-mode 0)
+      (visual-line-mode 0)
 
-    ;; disable various settings known to cause artifacts, see #1 for more details
-    (setq-local scroll-margin 0)
-    (setq-local scroll-conservatively 0)
-    (setq-local term-suppress-hard-newline t) ;for paths wider than the window
-    (setq-local show-trailing-whitespace nil)
-    (face-remap-add-relative 'mode-line '(:box nil))
+      ;; disable various settings known to cause artifacts, see #1 for more details
+      (setq-local scroll-margin 0)
+      (setq-local scroll-conservatively 0)
+      (setq-local term-suppress-hard-newline t) ;for paths wider than the window
+      (setq-local show-trailing-whitespace nil)
+      (face-remap-add-relative 'mode-line '(:box nil))
 
-    (term-char-mode)
-    (setq mode-line-format (format "   FZF  %s" directory))))
+      (term-char-mode)
+      (setq mode-line-format (format "   FZF  %s" directory)))))
 
 (defun fzf/vcs (match)
   (let ((path (locate-dominating-file default-directory match)))
@@ -120,9 +128,7 @@
       (fzf-directory))))
 
 (defun fzf/git-files ()
-  (let ((process-environment
-         (cons (concat "FZF_DEFAULT_COMMAND=git ls-files")
-               process-environment))
+  (let ((fzf/default-command "git ls-files")
         (path (locate-dominating-file default-directory ".git")))
     (if path
         (fzf/start path)
