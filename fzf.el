@@ -1,4 +1,4 @@
-;;; fzf.el --- A front-end for fzf.
+;;; fzf.el --- A front-end for fzf. -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2015 by Bailey Ling
 ;; Author: Bailey Ling
@@ -74,28 +74,89 @@
   :type 'string
   :group 'fzf)
 
-(defun fzf/after-term-handle-exit (process-name msg)
-  (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
-         (lines (split-string text "\n" t "\s*>\s+"))
-         (target (car (last (butlast lines 1))))
-         (file (expand-file-name (string-trim target))))
-    (kill-buffer "*fzf*")
-    (jump-to-register :fzf-windows)
-    (when (file-exists-p file)
-      (find-file file)))
-  (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
+(defun fzf/exit-code-from-event (msg)
+  "Return 0 if msg is finished, 1 if can parse, -1 if unknown"
+  (cond
+   ((string-match-p "finished" msg) "0")
+   ((string-match-p "exited abnormally" msg) (car (last (split-string msg))))
+   "-1"
+   )
+)
 
-(defun fzf/start (directory)
+; Awkward internal, global variable to save the reference to the 'term-handle-exit hook so it can be
+; deleted
+(setq fzf-hook nil)
+
+(defun fzf-close()
+  (interactive)
+
+  ; Remove hook first so it doesn't trigger when process is killed
+  (when fzf-hook (advice-remove 'term-handle-exit fzf-hook))
+  ; Delete all hooks on 'term-handle-exit. Potentially unnecessary
+  (advice-mapc (lambda (advice _props) (advice-remove 'term-handle-exit advice)) 'term-handle-exit)
+  (setq fzf-hook nil)
+
+  ; Kill process so user isn't prompted
+  (when (get-process "fzf")
+    (delete-process (get-process "fzf")))
+
+  ; Kill buffer and restore window
+  (when (get-buffer "*fzf*")
+    (kill-buffer "*fzf*")
+    (jump-to-register :fzf-windows))
+)
+
+
+(defun fzf/after-term-handle-exit (action)
+  "Construct function to run after term exits"
+  (lambda (process-name msg)
+    (let ((exit-code (fzf/exit-code-from-event msg)))
+      (message (format "exit code %s" exit-code))
+      (if (string= "0" exit-code)
+        ; Run action on result of fzf if exit code is 0
+        (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
+                (lines (split-string text "\n" t "\s*>\s+"))
+                (target (car (last (butlast lines 1))))
+            )
+            ; Kill fzf and restore windows
+            ; Killing has to happen before applying the action so functions like swaping the buffer
+            ; will apply to the right window
+            (kill-buffer "*fzf*")
+            (jump-to-register :fzf-windows)
+
+            (message (format "target %s" target))
+            (funcall action target)
+        )
+        ; Kill fzf and restore windows
+        (kill-buffer "*fzf*")
+        (jump-to-register :fzf-windows)
+        (message (format "FZF exited with code %s" exit-code))
+      )
+    )
+
+    ; Clean up advice handler by calling remove with same lambda
+    (advice-remove 'term-handle-exit (fzf/after-term-handle-exit action))
+  )
+)
+
+(defun fzf/start (directory action)
   (require 'term)
+
+  ; Clean up existing fzf
+  (fzf-close)
+
   (window-configuration-to-register :fzf-windows)
-  (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
+  (advice-add
+   'term-handle-exit
+   :after
+   (fzf/after-term-handle-exit action))
   (let* ((buf (get-buffer-create "*fzf*"))
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
          (window-system-args (when window-system " --margin=1,0"))
          (fzf-args (concat fzf/args window-system-args)))
     (with-current-buffer buf
-      (setq default-directory directory))
+      (setq default-directory (if directory directory "")))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
     (apply 'make-term "fzf" fzf/executable nil (split-string fzf-args))
@@ -103,72 +164,125 @@
     (linum-mode 0)
     (visual-line-mode 0)
 
+    (setq fzf-hook (fzf/after-term-handle-exit action))
+
     ;; disable various settings known to cause artifacts, see #1 for more details
     (setq-local scroll-margin 0)
     (setq-local scroll-conservatively 0)
     (setq-local term-suppress-hard-newline t) ;for paths wider than the window
     (setq-local show-trailing-whitespace nil)
+    (setq-local truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
     (term-char-mode)
     (setq mode-line-format (format "   FZF  %s" directory))))
 
-(defun fzf/vcs (match)
-  (let ((path (locate-dominating-file default-directory match)))
-    (if path
-        (fzf/start path)
-      (fzf-directory))))
-
-(defun fzf/git-files ()
-  (let ((process-environment
-         (cons (concat "FZF_DEFAULT_COMMAND=git ls-files")
-               process-environment))
-        (path (locate-dominating-file default-directory ".git")))
-    (if path
-        (fzf/start path)
-      (user-error "Not inside a Git repository"))))
-
-;;;###autoload
-(defun fzf ()
-  "Starts a fzf session."
+(defun fzf-with-command (command action &optional directory)
+  ; Set FZF_DEFAULT_COMMAND and then call fzf/start. If command is nil, leave FZF_DEFAULT_COMMAND
+  ; alone and use the users normal command
+  ;
+  ; For some inputs it would be much more efficient to directly pass the output to FZF rather than
+  ; capture in emacs, then pass to FZF. This function takes a command and uses/abuses
+  ; FZF_DEFAULT_COMMAND to run and pass the output to FZF
   (interactive)
-  (if (fboundp #'projectile-project-root)
-      (fzf/start (condition-case err
-                     (projectile-project-root)
-                   (error
-                    default-directory)))
-    (fzf/start default-directory)))
+  (if command
+    (let
+      ((process-environment (cons (concat "FZF_DEFAULT_COMMAND=" command "") process-environment)))
+      (fzf/start directory action))
+    (fzf/start directory action)
+  )
+)
 
-;;;###autoload
-(defun fzf-directory ()
-  "Starts a fzf session at the specified directory."
+(defun fzf-with-entries (entries action &optional directory)
+  "`entries' is a list of strings that is piped into `fzf' as a source."
+  ; FZF will read from stdin only if it detects stdin is not a tty, which amounts to something being
+  ; piped in. Unfortunately the emacs term-exec code runs /bin/sh -c exec "command", so it cannot
+  ; take in a pipeline of shell commands. Like bling/fzf.el/pull/20, abuse the FZF_DEFAULT_COMMAND,
+  ; environment var
   (interactive)
-  (fzf/start (ido-read-directory-name "Directory: " fzf/directory-start)))
+  (if entries
+    (fzf-with-command (concat "echo \"" (mapconcat (lambda (x) x) entries "\n") "\"") action directory)
+    (message "FZF not started because contents nil")
+  )
+)
 
-;;;###autoload
-(defun fzf-git ()
-  "Starts a fzf session at the root of the current git."
+(defun fzf-base (action &optional directory)
+  "Run FZF without setting default command"
   (interactive)
-  (fzf/vcs ".git"))
+  (fzf-with-command "" action directory)
+  )
 
-;;;###autoload
-(defun fzf-git-files ()
-  "Starts a fzf session only searching for git tracked files."
-  (interactive)
-  (fzf/git-files))
+(defun fzf/resolve-directory (&optional directory)
+  ; An example function to resolve a directory in a user command, before passing it to fzf. Here if
+  ; directory is undefined, attempt to use the projectile root. Users can define their own as
+  ; desired
+  ;
+  ; Example usage:
+  ; (defun fzf-example ()
+  ;   (fzf
+  ;    (lambda (x) (print x))
+  ;    (fzf/resolve-directory directory)))
+  (cond
+   (directory directory)
+   ((fboundp #'projectile-project-root) (condition-case err (projectile-project-root) (error default-directory)))
+   (t "")
+  )
+)
 
-;;;###autoload
-(defun fzf-hg ()
-  "Starts a fzf session at the root of the curreng hg."
+;; Prebuilt user commands
+(defun fzf-switch-buffer ()
   (interactive)
-  (fzf/vcs ".hg"))
+  (fzf-with-entries
+   (seq-filter
+    (lambda (x) (not (string-prefix-p " " x)))
+    (mapcar (function buffer-name) (buffer-list))
+   )
+    (lambda (x) (set-window-buffer nil x))
+  )
+)
 
-;;;###autoload
-(defun fzf-projectile ()
-  "Starts a fzf session at the root of the projectile project."
+(defun fzf-find-file (&optional directory)
   (interactive)
-  (require 'projectile)
-  (fzf/start (projectile-project-root)))
+  (let ((d (fzf/resolve-directory directory)))
+    (fzf
+    (lambda (x)
+        (let ((f (expand-file-name x d)))
+        (when (file-exists-p f)
+            (find-file f))))
+    d
+    )
+  )
+)
+
+(defun fzf-find-file-in-dir (directory)
+  (interactive "sDirectory: ")
+  (fzf-find-file directory)
+)
+
+(defun fzf-recentf ()
+  (interactive)
+  (fzf-with-entries recentf-list
+    (lambda (f) (when (file-exists-p f) (find-file f))))
+)
+
+(defun fzf-grep (search &optional directory)
+  (interactive "sGrep: ")
+  (let ((d (fzf/resolve-directory directory)))
+    (fzf-with-command
+    (format "grep -rHn %s ." search)
+    (lambda (x)
+      (let* ((parts (split-string x ":"))
+             (f (expand-file-name (nth 0 parts) d)))
+        (when (file-exists-p f)
+          (find-file f)
+          (goto-line (string-to-number (nth 1 parts))))))
+    d)))
+
+(defun fzf-test ()
+  (fzf-with-entries
+   (list "a" "b" "c")
+   (lambda (x) (print x))))
 
 (provide 'fzf)
+
 ;;; fzf.el ends here
