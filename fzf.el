@@ -108,6 +108,7 @@
     (setq-local scroll-conservatively 0)
     (setq-local term-suppress-hard-newline t) ;for paths wider than the window
     (setq-local show-trailing-whitespace nil)
+    (setq-local display-line-numbers nil)
     (face-remap-add-relative 'mode-line '(:box nil))
 
     (term-char-mode)
