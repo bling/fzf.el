@@ -38,8 +38,10 @@
 ;; M-x fzf
 ;; M-x fzf-directory
 ;; M-x fzf-git
+;; M-x fzf-git-files
 ;; M-x fzf-hg
 ;; M-x fzf-projectile
+;; M-x fzf-git-grep
 ;;
 ;;; Code:
 
@@ -64,6 +66,11 @@
   :type 'string
   :group 'fzf)
 
+(defcustom fzf/git-grep-args "-i --line-number %s"
+  "Arguments to pass into git grep. %s is the search term placeholder"
+  :type 'string
+  :group 'fzf)
+
 (defcustom fzf/position-bottom t
   "Set the position of the fzf window. Set to nil to position on top."
   :type 'bool
@@ -74,18 +81,31 @@
   :type 'string
   :group 'fzf)
 
+(defun fzf/grep-cmd (cmd args)
+  (format (concat cmd " " args)
+          (shell-quote-argument
+           (if (region-active-p)
+               (buffer-substring-no-properties (region-beginning) (region-end))
+             (read-from-minibuffer (concat cmd ": "))))))
+
 (defun fzf/after-term-handle-exit (process-name msg)
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
          (lines (split-string text "\n" t "\s*>\s+"))
-         (target (car (last (butlast lines 1))))
-         (file (expand-file-name (string-trim target))))
+         (line (car (last (butlast lines 1))))
+         (selected (split-string line ":"))
+         (file (expand-file-name (pop selected)))
+         (linenumber (pop selected)))
     (kill-buffer "*fzf*")
     (jump-to-register :fzf-windows)
     (when (file-exists-p file)
-      (find-file file)))
+      (find-file file))
+    (when linenumber
+      (goto-char (point-min))
+      (forward-line (- (string-to-number linenumber) 1))
+      (back-to-indentation)))
   (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
 
-(defun fzf/start (directory)
+(defun fzf/start (directory &optional cmd-stream)
   (require 'term)
   (window-configuration-to-register :fzf-windows)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
@@ -93,12 +113,14 @@
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
          (window-system-args (when window-system " --margin=1,0"))
-         (fzf-args (concat fzf/args window-system-args)))
+         (fzf-args (concat fzf/args window-system-args))
+         (sh-cmd (if cmd-stream (concat cmd-stream " | " fzf/executable " " fzf-args)
+                   (concat fzf/executable " " fzf-args))))
     (with-current-buffer buf
       (setq default-directory directory))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
-    (apply 'make-term "fzf" fzf/executable nil (split-string fzf-args))
+    (make-term "fzf" "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
     (linum-mode 0)
     (visual-line-mode 0)
@@ -170,6 +192,14 @@
   (interactive)
   (require 'projectile)
   (fzf/start (projectile-project-root)))
+
+;;;###autoload
+(defun fzf-git-grep ()
+  "Starts a fzf session based on git grep result. The input comes
+   from the prompt or the selected region"
+  (interactive)
+  (fzf/start (locate-dominating-file default-directory ".git")
+             (fzf/grep-cmd "git grep" fzf/git-grep-args)))
 
 (provide 'fzf)
 ;;; fzf.el ends here
