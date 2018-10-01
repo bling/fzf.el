@@ -157,7 +157,7 @@
   (interactive)
   (if (fboundp #'projectile-project-root)
       (fzf/start (condition-case err
-                     (projectile-project-root)
+                     (or (projectile-project-root) default-directory)
                    (error
                     default-directory)))
     (fzf/start default-directory)))
@@ -191,7 +191,7 @@
   "Starts a fzf session at the root of the projectile project."
   (interactive)
   (require 'projectile)
-  (fzf/start (projectile-project-root)))
+  (fzf/start (or (projectile-project-root) default-directory)))
 
 ;;;###autoload
 (defun fzf-git-grep ()
