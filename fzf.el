@@ -40,6 +40,7 @@
 ;; M-x fzf-git
 ;; M-x fzf-git-files
 ;; M-x fzf-hg
+;; M-x fzf-hg-files
 ;; M-x fzf-projectile
 ;; M-x fzf-git-grep
 ;;
@@ -61,7 +62,7 @@
   :type 'string
   :group 'fzf)
 
-(defcustom fzf/args "-x --color bw --print-query"
+(defcustom fzf/args "-x --print-query"
   "Additional arguments to pass into fzf."
   :type 'string
   :group 'fzf)
@@ -79,6 +80,16 @@
 (defcustom fzf/directory-start nil
   "The path of the default start directory for fzf-directory."
   :type 'string
+  :group 'fzf)
+
+(defcustom fzf/use-rg-files t
+  "If set, use `rg --files` to list files instead of the default."
+  :type 'bool
+  :group 'fzf)
+
+(defcustom fzf/evil-esc-to-kill-buffer t
+  "If set, ESC will kill the FZF buffer."
+  :type 'bool
   :group 'fzf)
 
 (defun fzf/grep-cmd (cmd args)
@@ -122,6 +133,10 @@
     (when fzf/position-bottom (other-window 1))
     (make-term "fzf" "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
+    (if fzf/evil-esc-to-kill-buffer
+        (progn
+          (evil-local-set-key 'normal (kbd "<escape>") 'term-kill-subjob)
+          (evil-local-set-key 'insert (kbd "<escape>") 'term-kill-subjob)))
     (linum-mode 0)
     (visual-line-mode 0)
 
@@ -143,13 +158,24 @@
       (fzf-directory))))
 
 (defun fzf/git-files ()
-  (let ((process-environment
-         (cons (concat "FZF_DEFAULT_COMMAND=git ls-files")
-               process-environment))
-        (path (locate-dominating-file default-directory ".git")))
+  (let* ((fzf-command (if fzf/use-rg-files "rg --files" "git ls-files"))
+         (process-environment
+          (cons (concat (format "FZF_DEFAULT_COMMAND=%s" fzf-command))
+                process-environment))
+         (path (locate-dominating-file default-directory ".git")))
     (if path
         (fzf/start path)
       (user-error "Not inside a Git repository"))))
+
+(defun fzf/hg-files ()
+  (let* ((fzf-command (if fzf/use-rg-files "rg --files" "hg files"))
+         (process-environment
+          (cons (concat (format "FZF_DEFAULT_COMMAND=%s" fzf-command))
+                process-environment))
+         (path (locate-dominating-file default-directory ".hg")))
+    (if path
+        (fzf/start path)
+      (user-error "Not inside a Hg repository"))))
 
 ;;;###autoload
 (defun fzf ()
@@ -182,9 +208,15 @@
 
 ;;;###autoload
 (defun fzf-hg ()
-  "Starts a fzf session at the root of the curreng hg."
+  "Starts a fzf session at the root of the current hg."
   (interactive)
   (fzf/vcs ".hg"))
+
+;;;###autoload
+(defun fzf-hg-files ()
+  "Starts a fzf session only searching for hg tracked files."
+  (interactive)
+  (fzf/hg-files))
 
 ;;;###autoload
 (defun fzf-projectile ()
