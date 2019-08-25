@@ -88,27 +88,25 @@
                (buffer-substring-no-properties (region-beginning) (region-end))
              (read-from-minibuffer (concat cmd ": "))))))
 
-(defun fzf/after-term-handle-exit (process-name msg)
+;; I wish we could just pass argument to fzf/after-term-handle-exit instead of using global variable.
+(defvar after-term-advice)
+
+(defun fzf/after-term-handle-exit ()
   (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
          (lines (split-string text "\n" t "\s*>\s+"))
-         (line (car (last (butlast lines 1))))
-         (selected (split-string line ":"))
-         (file (expand-file-name (pop selected)))
-         (linenumber (pop selected)))
+         (line (car (last (butlast lines 1)))))
     (kill-buffer "*fzf*")
+    (advice-remove 'term-handle-exit after-term-advice)
     (jump-to-register :fzf-windows)
-    (when (file-exists-p file)
-      (find-file file))
-    (when linenumber
-      (goto-char (point-min))
-      (forward-line (- (string-to-number linenumber) 1))
-      (back-to-indentation)))
-  (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
+    line))
 
-(defun fzf/start (directory &optional cmd-stream)
+(defun fzf/select (directory f &optional cmd-stream)
   (require 'term)
   (window-configuration-to-register :fzf-windows)
-  (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
+  (lexical-let* ((f f)
+                 (adv (lambda (a b) (funcall f (fzf/after-term-handle-exit)))))
+    (setq after-term-advice adv)
+    (advice-add 'term-handle-exit :after adv))
   (let* ((buf (get-buffer-create "*fzf*"))
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
@@ -135,6 +133,9 @@
 
     (term-char-mode)
     (setq mode-line-format (format "   FZF  %s" directory))))
+
+(defun fzf/start (directory &optional cmd-stream)
+  (fzf/select directory (lambda (selected) (when (file-exists-p selected) (find-file selected)))))
 
 (defun fzf/vcs (match)
   (let ((path (locate-dominating-file default-directory match)))
@@ -198,8 +199,18 @@
   "Starts a fzf session based on git grep result. The input comes
    from the prompt or the selected region"
   (interactive)
-  (fzf/start (locate-dominating-file default-directory ".git")
-             (fzf/grep-cmd "git grep" fzf/git-grep-args)))
+  (fzf/select
+   (locate-dominating-file default-directory ".git")
+   (lambda (line) (let* ((selected (split-string line ":"))
+                         (file (expand-file-name (pop selected)))
+                         (linenumber (pop selected)))
+                    (when (file-exists-p file)
+                      (find-file file))
+                    (when linenumber
+                      (goto-char (point-min))
+                      (forward-line (- (string-to-number linenumber) 1))
+                      (back-to-indentation))))
+   (fzf/grep-cmd "git grep" fzf/git-grep-args)))
 
 (provide 'fzf)
 ;;; fzf.el ends here
