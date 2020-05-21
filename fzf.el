@@ -93,7 +93,7 @@
          (lines (split-string text "\n" t "\s*>\s+"))
          (line (car (last (butlast lines 1))))
          (selected (split-string line ":"))
-         (file (expand-file-name (pop selected)))
+         (file (string-trim-right (expand-file-name (pop selected))))
          (linenumber (pop selected)))
     (kill-buffer "*fzf*")
     (jump-to-register :fzf-windows)
