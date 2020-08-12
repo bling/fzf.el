@@ -98,8 +98,8 @@
          (lines (split-string text "\n" t "\s*>\s+"))
          ;; (line (car (last (butlast lines 1))))
          (line (car lines))
-         (selected (split-string line ":"))
-         (file (expand-file-name (pop selected)))
+         (selected (split-string (or line "") ":" t))
+         (file (pop selected))
          (linenumber (pop selected)))
     ;; (message ":: text: %s"
     ;;          text)
@@ -109,7 +109,8 @@
     ;;          line)
     (kill-buffer "*fzf*")
     (jump-to-register :fzf-windows)
-    (when (file-exists-p file)
+    (when (and file
+               (file-exists-p file))
       (find-file file))
     (when linenumber
       (goto-char (point-min))
