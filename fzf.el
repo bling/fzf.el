@@ -81,6 +81,9 @@
   :type 'string
   :group 'fzf)
 
+(defvar fzf--tmp-output-file nil
+  "Path to temporary output file.")
+
 (defun fzf/grep-cmd (cmd args)
   (format (concat cmd " " args)
           (shell-quote-argument
@@ -89,9 +92,12 @@
              (read-from-minibuffer (concat cmd ": "))))))
 
 (defun fzf/after-term-handle-exit (process-name msg)
-  (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
+  (let* ((text (with-temp-buffer
+                 (insert-file-contents fzf--tmp-output-file)
+                 (buffer-substring-no-properties (point-min) (point-max))))
          (lines (split-string text "\n" t "\s*>\s+"))
-         (line (car (last (butlast lines 1))))
+         ;; (line (car (last (butlast lines 1))))
+         (line (car lines))
          (selected (split-string line ":"))
          (file (expand-file-name (pop selected)))
          (linenumber (pop selected)))
@@ -109,6 +115,8 @@
       (goto-char (point-min))
       (forward-line (- (string-to-number linenumber) 1))
       (back-to-indentation)))
+  (delete-file fzf--tmp-output-file)
+  (setq fzf--tmp-output-file nil)
   (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
 
 (defun fzf/around-term-sentinel (f proc msg)
@@ -130,13 +138,13 @@
       ;; (message ":: AFTER proc %S" proc)
       ;; (message ":: AFTER proc name %S" name)
       ;; (message ":: AFTER str %S" str)
-      (let* ((lines (split-string str "\n\\|\r" t))
+      (let* ((lines (split-string str "\0" t))
              (line (car (last lines)))
              (selected (split-string line ":"))
              (file (expand-file-name (pop selected)))
              (linenumber (pop selected)))
-        ;; (message ":: AFTER lines %S" lines)
-        ;; (message ":: AFTER line %S" line)
+        (message ":: AFTER lines %S" lines)
+        (message ":: AFTER line %S" line)
         (kill-buffer "*fzf*")
         (jump-to-register :fzf-windows)
         (when (file-exists-p file)
@@ -150,21 +158,27 @@
 (defun fzf/start (directory &optional cmd-stream)
   (require 'term)
   (window-configuration-to-register :fzf-windows)
-  ;; (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
+  (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
   ;; (advice-add 'term-sentinel :around #'fzf/around-term-sentinel)
-  (advice-add 'term-emulate-terminal :after #'fzf/after-term-emulate-terminal)
+  ;; (advice-add 'term-emulate-terminal :after #'fzf/after-term-emulate-terminal)
   (let* ((buf (get-buffer-create "*fzf*"))
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
          (window-system-args (when window-system " --margin=1,0"))
          (fzf-args (concat fzf/args window-system-args))
          (sh-cmd (if cmd-stream (concat cmd-stream " | " fzf/executable " " fzf-args)
-                   (concat fzf/executable " " fzf-args))))
+                   (concat fzf/executable " " fzf-args)))
+         (output-file (make-temp-file "fzf-el-result"))
+         (sh-cmd-with-redirect (concat sh-cmd
+                                       " > "
+                                       (shell-quote-argument output-file))))
+    (setq fzf--tmp-output-file
+          output-file)
     (with-current-buffer buf
       (setq default-directory directory))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
-    (make-term "fzf" "sh" nil "-c" sh-cmd)
+    (make-term "fzf" "sh" nil "-c" sh-cmd-with-redirect)
     (switch-to-buffer buf)
     (linum-mode 0)
     (visual-line-mode 0)
