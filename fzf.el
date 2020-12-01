@@ -143,12 +143,9 @@
       (fzf-directory))))
 
 (defun fzf/git-files ()
-  (let ((process-environment
-         (cons (concat "FZF_DEFAULT_COMMAND=git ls-files")
-               process-environment))
-        (path (locate-dominating-file default-directory ".git")))
+  (let ((path (locate-dominating-file default-directory ".git")))
     (if path
-        (fzf/start path)
+        (fzf/start path "git ls-files")
       (user-error "Not inside a Git repository"))))
 
 ;;;###autoload
