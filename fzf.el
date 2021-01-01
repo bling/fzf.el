@@ -123,6 +123,7 @@
     (when fzf/position-bottom (other-window 1))
     (make-term "fzf" "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
+    (and (fboundp #'turn-off-evil-mode) (turn-off-evil-mode))
     (linum-mode 0)
     (visual-line-mode 0)
 
