@@ -81,6 +81,12 @@
   :type 'string
   :group 'fzf)
 
+(defconst fzf/window-register ?⬄
+  "A single character for fzf to save/restore the window
+configuration. `window-configuration-to-register' expects a single
+character, so the unicode character is to avoid any clash with real
+registers.")
+
 (defun fzf/grep-cmd (cmd args)
   (format (concat cmd " " args)
           (shell-quote-argument
@@ -96,7 +102,7 @@
          (file (string-trim-right (expand-file-name (pop selected))))
          (linenumber (pop selected)))
     (kill-buffer "*fzf*")
-    (jump-to-register :fzf-windows)
+    (jump-to-register fzf/window-register)
     (when (file-exists-p file)
       (find-file file))
     (when linenumber
@@ -107,7 +113,7 @@
 
 (defun fzf/start (directory &optional cmd-stream)
   (require 'term)
-  (window-configuration-to-register :fzf-windows)
+  (window-configuration-to-register fzf/window-register)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
   (let* ((term-exec-hook nil)
          (buf (get-buffer-create "*fzf*"))
