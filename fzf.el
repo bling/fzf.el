@@ -48,6 +48,9 @@
 (require 'term)
 (require 'subr-x)
 
+(declare-function projectile-project-root "projectile")
+(declare-function turn-off-evil-mode "evil")
+
 (defgroup fzf nil
   "Configuration options for fzf.el"
   :group 'convenience)
