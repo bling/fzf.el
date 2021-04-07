@@ -82,10 +82,9 @@
   :group 'fzf)
 
 (defconst fzf/window-register ?⬄
-  "A single character for fzf to save/restore the window
-configuration.  `window-configuration-to-register' expects a single
-character, so the unicode character is to avoid any clash with real
-registers.")
+  "A single character for fzf to save/restore the window configuration.
+`window-configuration-to-register' expects a single character, so
+the unicode character is to avoid any clash with real registers.")
 
 (defun fzf/grep-cmd (cmd args)
   (format (concat cmd " " args)
@@ -195,8 +194,8 @@ registers.")
 
 ;;;###autoload
 (defun fzf-git-grep ()
-  "Starts a fzf session based on git grep result.  The input comes
-   from the prompt or the selected region."
+  "Starts a fzf session based on git grep result.
+The input comes from the prompt or the selected region."
   (interactive)
   (fzf/start (locate-dominating-file default-directory ".git")
              (fzf/grep-cmd "git grep" fzf/git-grep-args)))
