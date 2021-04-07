@@ -1,4 +1,4 @@
-;;; fzf.el --- A front-end for fzf.
+;;; fzf.el --- A front-end for fzf
 ;;
 ;; Copyright (C) 2015 by Bailey Ling
 ;; Author: Bailey Ling
