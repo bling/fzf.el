@@ -155,7 +155,7 @@ the unicode character is to avoid any clash with real registers.")
 
 ;;;###autoload
 (defun fzf ()
-  "Starts a fzf session."
+  "Start a fzf session."
   (interactive)
   (if (fboundp #'projectile-project-root)
       (fzf/start (or (projectile-project-root) default-directory))
@@ -163,38 +163,38 @@ the unicode character is to avoid any clash with real registers.")
 
 ;;;###autoload
 (defun fzf-directory ()
-  "Starts a fzf session at the specified directory."
+  "Start a fzf session at the specified directory."
   (interactive)
   (fzf/start (ido-read-directory-name "Directory: " fzf/directory-start)))
 
 ;;;###autoload
 (defun fzf-git ()
-  "Starts a fzf session at the root of the current git."
+  "Start a fzf session at the root of the current git."
   (interactive)
   (fzf/vcs ".git"))
 
 ;;;###autoload
 (defun fzf-git-files ()
-  "Starts a fzf session only searching for git tracked files."
+  "Start a fzf session only searching for git tracked files."
   (interactive)
   (fzf/git-files))
 
 ;;;###autoload
 (defun fzf-hg ()
-  "Starts a fzf session at the root of the curreng hg."
+  "Start a fzf session at the root of the curreng hg."
   (interactive)
   (fzf/vcs ".hg"))
 
 ;;;###autoload
 (defun fzf-projectile ()
-  "Starts a fzf session at the root of the projectile project."
+  "Start a fzf session at the root of the projectile project."
   (interactive)
   (require 'projectile)
   (fzf/start (or (projectile-project-root) default-directory)))
 
 ;;;###autoload
 (defun fzf-git-grep ()
-  "Starts a fzf session based on git grep result.
+  "Start a fzf session based on git grep result.
 The input comes from the prompt or the selected region."
   (interactive)
   (fzf/start (locate-dominating-file default-directory ".git")
