@@ -45,6 +45,7 @@
 ;;
 ;;; Code:
 
+(require 'term)
 (require 'subr-x)
 
 (defgroup fzf nil
@@ -111,7 +112,6 @@ the unicode character is to avoid any clash with real registers.")
   (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
 
 (defun fzf/start (directory &optional cmd-stream)
-  (require 'term)
   (window-configuration-to-register fzf/window-register)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
   (let* ((term-exec-hook nil)
