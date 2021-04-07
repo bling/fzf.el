@@ -1,4 +1,4 @@
-;;; fzf.el --- A front-end for fzf.
+;;; fzf.el --- A front-end for fzf
 ;;
 ;; Copyright (C) 2015 by Bailey Ling
 ;; Author: Bailey Ling
@@ -8,7 +8,7 @@
 ;; Created: 2015-09-18
 ;; Version: 0.0.2
 ;; Package-Requires: ((emacs "24.4"))
-;; Keywords: fzf fuzzy search
+;; Keywords: convenience fzf fuzzy search
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -27,7 +27,7 @@
 ;; the Free Software Foundation, Inc., 51 Franklin Street, Fifth
 ;; Floor, Boston, MA 02110-1301, USA.
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Commentary:
 ;;
 ;; Install:
 ;;
@@ -45,14 +45,18 @@
 ;;
 ;;; Code:
 
+(require 'term)
 (require 'subr-x)
+
+(declare-function projectile-project-root "projectile")
+(declare-function turn-off-evil-mode "evil")
 
 (defgroup fzf nil
   "Configuration options for fzf.el"
   :group 'convenience)
 
 (defcustom fzf/window-height 15
-  "The window height of the fzf buffer"
+  "The window height of the fzf buffer."
   :type 'integer
   :group 'fzf)
 
@@ -67,12 +71,12 @@
   :group 'fzf)
 
 (defcustom fzf/git-grep-args "-i --line-number %s"
-  "Arguments to pass into git grep. %s is the search term placeholder"
+  "Arguments to pass into git grep.  %s is the search term placeholder."
   :type 'string
   :group 'fzf)
 
 (defcustom fzf/position-bottom t
-  "Set the position of the fzf window. Set to nil to position on top."
+  "Set the position of the fzf window.  Set to nil to position on top."
   :type 'bool
   :group 'fzf)
 
@@ -82,10 +86,9 @@
   :group 'fzf)
 
 (defconst fzf/window-register ?⬄
-  "A single character for fzf to save/restore the window
-configuration. `window-configuration-to-register' expects a single
-character, so the unicode character is to avoid any clash with real
-registers.")
+  "A single character for fzf to save/restore the window configuration.
+`window-configuration-to-register' expects a single character, so
+the unicode character is to avoid any clash with real registers.")
 
 (defun fzf/grep-cmd (cmd args)
   (format (concat cmd " " args)
@@ -112,7 +115,6 @@ registers.")
   (advice-remove 'term-handle-exit #'fzf/after-term-handle-exit))
 
 (defun fzf/start (directory &optional cmd-stream)
-  (require 'term)
   (window-configuration-to-register fzf/window-register)
   (advice-add 'term-handle-exit :after #'fzf/after-term-handle-exit)
   (let* ((term-exec-hook nil)
@@ -156,7 +158,7 @@ registers.")
 
 ;;;###autoload
 (defun fzf ()
-  "Starts a fzf session."
+  "Start a fzf session."
   (interactive)
   (if (fboundp #'projectile-project-root)
       (fzf/start (or (projectile-project-root) default-directory))
@@ -164,39 +166,39 @@ registers.")
 
 ;;;###autoload
 (defun fzf-directory ()
-  "Starts a fzf session at the specified directory."
+  "Start a fzf session at the specified directory."
   (interactive)
   (fzf/start (ido-read-directory-name "Directory: " fzf/directory-start)))
 
 ;;;###autoload
 (defun fzf-git ()
-  "Starts a fzf session at the root of the current git."
+  "Start a fzf session at the root of the current git."
   (interactive)
   (fzf/vcs ".git"))
 
 ;;;###autoload
 (defun fzf-git-files ()
-  "Starts a fzf session only searching for git tracked files."
+  "Start a fzf session only searching for git tracked files."
   (interactive)
   (fzf/git-files))
 
 ;;;###autoload
 (defun fzf-hg ()
-  "Starts a fzf session at the root of the curreng hg."
+  "Start a fzf session at the root of the curreng hg."
   (interactive)
   (fzf/vcs ".hg"))
 
 ;;;###autoload
 (defun fzf-projectile ()
-  "Starts a fzf session at the root of the projectile project."
+  "Start a fzf session at the root of the projectile project."
   (interactive)
   (require 'projectile)
   (fzf/start (or (projectile-project-root) default-directory)))
 
 ;;;###autoload
 (defun fzf-git-grep ()
-  "Starts a fzf session based on git grep result. The input comes
-   from the prompt or the selected region"
+  "Start a fzf session based on git grep result.
+The input comes from the prompt or the selected region."
   (interactive)
   (fzf/start (locate-dominating-file default-directory ".git")
              (fzf/grep-cmd "git grep" fzf/git-grep-args)))
