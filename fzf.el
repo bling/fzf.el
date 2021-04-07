@@ -52,7 +52,7 @@
   :group 'convenience)
 
 (defcustom fzf/window-height 15
-  "The window height of the fzf buffer"
+  "The window height of the fzf buffer."
   :type 'integer
   :group 'fzf)
 
@@ -67,7 +67,7 @@
   :group 'fzf)
 
 (defcustom fzf/git-grep-args "-i --line-number %s"
-  "Arguments to pass into git grep. %s is the search term placeholder"
+  "Arguments to pass into git grep. %s is the search term placeholder."
   :type 'string
   :group 'fzf)
 
@@ -196,7 +196,7 @@ registers.")
 ;;;###autoload
 (defun fzf-git-grep ()
   "Starts a fzf session based on git grep result. The input comes
-   from the prompt or the selected region"
+   from the prompt or the selected region."
   (interactive)
   (fzf/start (locate-dominating-file default-directory ".git")
              (fzf/grep-cmd "git grep" fzf/git-grep-args)))
