@@ -286,7 +286,7 @@ to start in."
   (cond
    (directory directory)
    ((fboundp #'projectile-project-root) (condition-case err (projectile-project-root) (error default-directory)))
-   (t "")
+   (t default-directory)
   )
 )
 
