@@ -133,7 +133,7 @@ configuration.")
 )
 
 
-(defun fzf/after-term-handle-exit (action)
+(defun fzf/after-term-handle-exit (directory action)
   "Construct function to run after term exits"
   (lambda (process-name msg)
     (let ((exit-code (fzf/exit-code-from-event msg)))
@@ -143,6 +143,7 @@ configuration.")
         (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
                 (lines (split-string text "\n" t "\s*>\s+"))
                 (target (car (last (butlast lines 1))))
+                (target-full (concat (file-name-as-directory directory) target))
             )
             ; Kill fzf and restore windows
             ; Killing has to happen before applying the action so functions like swaping the buffer
@@ -150,8 +151,8 @@ configuration.")
             (kill-buffer fzf/buffer-name)
             (jump-to-register fzf/window-register)
 
-            (message (format "target %s" target))
-            (funcall action target)
+            (message (format "target %s" target-full))
+            (funcall action target-full)
         )
         ; Kill fzf and restore windows
         (kill-buffer fzf/buffer-name)
@@ -161,7 +162,7 @@ configuration.")
     )
 
     ; Clean up advice handler by calling remove with same lambda
-    (advice-remove 'term-handle-exit (fzf/after-term-handle-exit action))
+    (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))
   )
 )
 
@@ -172,7 +173,7 @@ configuration.")
   (fzf-close)
 
   (window-configuration-to-register fzf/window-register)
-  (advice-add 'term-handle-exit :after (fzf/after-term-handle-exit action))
+  (advice-add 'term-handle-exit :after (fzf/after-term-handle-exit directory action))
   (let* ((term-exec-hook nil)
          (buf (get-buffer-create fzf/buffer-name))
          (min-height (min fzf/window-height (/ (window-height) 2)))
@@ -188,7 +189,7 @@ configuration.")
     (linum-mode 0)
     (visual-line-mode 0)
 
-    (setq fzf-hook (fzf/after-term-handle-exit action))
+    (setq fzf-hook (fzf/after-term-handle-exit directory action))
 
     ;; disable various settings known to cause artifacts, see #1 for more details
     (setq-local scroll-margin 0)
