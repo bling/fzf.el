@@ -143,7 +143,10 @@ configuration.")
         (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
                 (lines (split-string text "\n" t "\s*>\s+"))
                 (target (car (last (butlast lines 1))))
-                (target-full (concat (file-name-as-directory directory) target))
+                (target-full (concat
+                              (if directory
+                                  (file-name-as-directory directory))
+                              target))
             )
             ; Kill fzf and restore windows
             ; Killing has to happen before applying the action so functions like swaping the buffer
