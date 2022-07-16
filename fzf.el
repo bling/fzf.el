@@ -132,44 +132,32 @@ configuration.")
     (jump-to-register fzf/window-register))
 )
 
-
 (defun fzf/after-term-handle-exit (directory action)
-  "Construct function to run after term exits"
-  (lambda (process-name msg)
-    (let ((exit-code (fzf/exit-code-from-event msg)))
-      (message (format "exit code %s" exit-code))
-      (if (string= "0" exit-code)
-        ; Run action on result of fzf if exit code is 0
-        (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
-                (lines (split-string text "\n" t "\s*>\s+"))
-                (target (car (last (butlast lines 1))))
-                (target-full (concat
-                              (if directory
-                                  (file-name-as-directory directory))
-                              target))
-            )
-            ; Kill fzf and restore windows
-            ; Killing has to happen before applying the action so functions like swaping the buffer
-            ; will apply to the right window
-            (kill-buffer fzf/buffer-name)
-            (jump-to-register fzf/window-register)
+  "Create a lambda to handle the result of fzf.
 
-            (message (format "target %s" target-full))
-            (funcall action target-full)
-        )
-        ; Kill fzf and restore windows
-        (kill-buffer fzf/buffer-name)
-        (jump-to-register fzf/window-register)
-        (message (format "FZF exited with code %s" exit-code))
-      )
-    )
+The lambda must conform to `term-handle-exit`, i.e. accept two arguments -
+a process name, and output msg.
+The lambda will call ACTION on the result of fzf if fzf exited successfully.
+If DIRECTORY is provided, it is prepended to the result of fzf."
+  (lambda (_ msg)
+    (let* ((exit-code (fzf/exit-code-from-event msg))
+           (text (buffer-substring-no-properties (point-min) (point-max)))
+           (lines (split-string text "\n" t "\s*>\s+"))
+           (target (concat
+                    (if directory
+                        (file-name-as-directory directory))
+                    (car (last (butlast lines))))))
+      ;; Kill the fzf buffer and restore the previous window configuration.
+      (kill-buffer fzf/buffer-name)
+      (jump-to-register fzf/window-register)
+      (message (format "FZF exited with code %s" exit-code))
+      ;; Only do something with the result if fzf was successful.
+      (when (string= "0" exit-code) (funcall action target)))
+    ;; Remove this advice so as to not interfere with other usages of `term`.
+    ;; This gets added back in `fzf/start`
+    (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))))
 
-    ; Clean up advice handler by calling remove with same lambda
-    (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))
-  )
-)
-
-(defun fzf/start (directory action)
+(defun fzf/start (directory action &optional cmd)
   (require 'term)
 
   ; Clean up existing fzf
@@ -181,7 +169,7 @@ configuration.")
          (buf (get-buffer-create fzf/buffer-name))
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
-         (sh-cmd (concat fzf/executable " " fzf/args)))
+         (sh-cmd (concat (when cmd (concat cmd " | ")) fzf/executable " " fzf/args)))
     (with-current-buffer buf
       (setq default-directory (if directory directory "")))
     (split-window-vertically window-height)
@@ -229,34 +217,23 @@ configuration.")
 )
 
 (defun fzf-with-command (command action &optional directory)
-  "FZF_DEFAULT_COMMAND is set to `command'. `action' is a
-function that takes a single argument which is the selected
-result from `fzf'. `directory' is the directory to start in."
-  ; Set FZF_DEFAULT_COMMAND and then call fzf/start. If command is nil, leave FZF_DEFAULT_COMMAND
-  ; alone and use the users normal command
-  ;
-  ; For some inputs it would be much more efficient to directly pass the output to FZF rather than
-  ; capture in emacs, then pass to FZF. This function takes a command and uses/abuses
-  ; FZF_DEFAULT_COMMAND to run and pass the output to FZF.
+  "Run `fzf` on the output of COMMAND.
+
+If COMMAND is nil, use `FZF_DEFAULT_COMMAND`.
+ACTION is a function that takes a single argument, which is the
+selected result from `fzf`.  DIRECTORY is the directory to start in."
   (interactive)
   (if command
-    (let
-      ((process-environment (cons (concat "FZF_DEFAULT_COMMAND=" command "") process-environment)))
-      (fzf/start directory action))
-    (fzf/start directory action)
-  )
+      (fzf/start directory action command)
+    (fzf/start directory action))
 )
 
 ;;;###autoload
 (defun fzf-with-entries (entries action &optional directory)
-  "`entries' is a list of strings that is piped into `fzf' as a
-source. `action' is a function that takes a single argument which
-is the selected result from `fzf'. `directory' is the directory
-to start in."
-  ; FZF will read from stdin only if it detects stdin is not a tty, which amounts to something being
-  ; piped in. Unfortunately the emacs term-exec code runs /bin/sh -c exec "command", so it cannot
-  ; take in a pipeline of shell commands. Like bling/fzf.el/pull/20, abuse the FZF_DEFAULT_COMMAND,
-  ; environment var
+  "Run `fzf` with the list ENTRIES as input.
+
+ACTION is a function that takes a single argument, which is the
+selected result from `fzf`. DIRECTORY is the directory to start in"
   (interactive)
   (if entries
     (fzf-with-command (concat "echo \"" (mapconcat (lambda (x) x) entries "\n") "\"") action directory)
