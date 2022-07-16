@@ -49,6 +49,7 @@
 ;; M-x fzf-git-grep
 ;; M-x fzf-recentf
 ;; M-x fzf-grep
+;; M-x fzf-grep-dwim
 ;;
 ;;; Code:
 
@@ -70,6 +71,14 @@
 
 (defcustom fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
   "Additional arguments to pass into fzf."
+  :type 'string
+  :group 'fzf)
+
+(defcustom fzf/grep-command "grep -nrH"
+  "Command used for `fzf-grep-*` functions.
+
+Output of this command must be in the form <FILE>:<LINE NUMBER>:<LINE>.
+See `fzf/action-find-file-with-line` for details on how output is parsed."
   :type 'string
   :group 'fzf)
 
@@ -319,11 +328,24 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 
 ;;;###autoload
 (defun fzf-grep (search &optional directory)
+  "Call `fzf/grep-command` on SEARCH.
+
+Grep in `fzf/resolve-directory` using DIRECTORY if provided."
   (interactive "sGrep: ")
-  (fzf-with-command (format "grep -rHn %s ." search)
-                    #'fzf/action-find-file-with-line
-                    (or directory default-directory))
-)
+  (let* ((dir (fzf/resolve-directory directory))
+         (action #'fzf/action-find-file-with-line)
+         (cmd (concat fzf/grep-command " " search)))
+    (fzf/start dir action cmd)))
+
+;;;###autoload
+(defun fzf-grep-dwim ()
+  "Call `fzf-grep` on `symbol-at-point`.
+
+If `thing-at-point` is not a symbol, read input interactively."
+  (interactive)
+  (if (symbol-at-point)
+      (fzf-grep (thing-at-point 'symbol))
+    (call-interactively #'fzf-grep)))
 
 ;;;###autoload
 (defun fzf-git ()
