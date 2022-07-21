@@ -180,7 +180,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
          (window-height (if fzf/position-bottom (- min-height) min-height))
          (sh-cmd (concat (when cmd (concat cmd " | ")) fzf/executable " " fzf/args)))
     (with-current-buffer buf
-      (setq default-directory (if directory directory "")))
+      (setq default-directory (or directory "")))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
     (make-term fzf/executable "sh" nil "-c" sh-cmd)
@@ -189,19 +189,19 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (linum-mode 0)
     (visual-line-mode 0)
 
-    (setq fzf-hook (fzf/after-term-handle-exit directory action))
-
     ;; disable various settings known to cause artifacts, see #1 for more details
-    (setq-local scroll-margin 0)
-    (setq-local scroll-conservatively 0)
-    (setq-local term-suppress-hard-newline t) ;for paths wider than the window
-    (setq-local show-trailing-whitespace nil)
-    (setq-local display-line-numbers nil)
-    (setq-local truncate-lines t)
+    (setq-local scroll-margin 0
+                scroll-conservatively 0
+                term-suppress-hard-newline t
+                show-trailing-whitespace nil
+                display-line-numbers nil
+                truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
     (term-char-mode)
-    (setq mode-line-format (format "   FZF  %s" directory))))
+    (setq fzf-hook (fzf/after-term-handle-exit directory action)
+          mode-line-format (format "   FZF  %s" (or directory "")))))
+
 
 (defun fzf/action-find-file (target)
   (when (file-exists-p target)
