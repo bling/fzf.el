@@ -46,6 +46,9 @@ fzf.el comes with some example commands to try out
 - `M-x fzf-git-grep`
 - `M-x fzf-recentf`
 - `M-x fzf-grep`
+- `M-x fzf-grep-in-dir`
+- `M-x fzf-grep-with-narrowing`
+- `M-x fzf-grep-in-dir-with-narrowing`
 - `M-x fzf-grep-dwim`
 
 But the real action is writing your own.
