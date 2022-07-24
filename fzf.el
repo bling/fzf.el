@@ -396,6 +396,16 @@ If `thing-at-point` is not a symbol, read input interactively."
     (fzf-grep)))
 
 ;;;###autoload
+(defun fzf-grep-dwim-with-narrowing ()
+  "Call `fzf-grep` on `symbol-at-point`, with grep as the narrowing filter.
+
+If `thing-at-point` is not a symbol, read input interactively."
+  (interactive)
+  (if (symbol-at-point)
+      (fzf-grep (thing-at-point 'symbol) nil t)
+    (fzf-grep nil nil t)))
+
+;;;###autoload
 (defun fzf-git ()
   "Starts an fzf session at the root of the current git project."
   (interactive)
