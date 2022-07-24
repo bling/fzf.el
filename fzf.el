@@ -226,7 +226,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
   (fzf/start (fzf/resolve-directory) #'fzf/action-find-file)
 )
 
-(defun fzf-with-command (command action &optional directory as-filter)
+(defun fzf-with-command (command action &optional directory as-filter initq)
   "Run `fzf` on the output of COMMAND.
 
 If COMMAND is nil, use the default `FZF_DEFAULT_COMMAND`.
@@ -239,7 +239,7 @@ selected result from `fzf`.
 DIRECTORY is the directory to start in.
 
 If AS-FILTER is non-nil, use command as the narrowing filter instead of fzf,
-as explained here:
+with INITQ as the initial query, as explained here:
 https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interative-ripgrep-launcher
 E.g. If COMMAND is grep, use grep as a narrowing filter to interactively
 reduce the search space, instead of using fzf to filter (but not narrow)."
@@ -250,6 +250,7 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
            (args (if as-filter
                      (concat fzf/args
                              " --disabled"
+                             " --query " initq
                              " --bind \"change:reload:sleep 0.1; "
                              fzf/grep-command
                              " {q} || true\"")
@@ -359,7 +360,7 @@ If AS-FILTER is non-nil, use grep as the narrowing filter instead of fzf."
          (pattern (or search
                       (read-from-minibuffer (concat fzf/grep-command ": "))))
          (cmd (concat fzf/grep-command " " pattern)))
-    (fzf-with-command cmd action dir as-filter)))
+    (fzf-with-command cmd action dir as-filter pattern)))
 
 ;;;###autoload
 (defun fzf-grep-in-dir (&optional directory as-filter)
