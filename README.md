@@ -32,31 +32,47 @@ available customizations and their default values.
 
 # usage
 
-fzf.el comes with some example commands to try out
+`fzf.el` comes with a number of useful commands:
 
+### Using `FZF_DEFAULT_COMMAND`:
 - `M-x fzf`
 - `M-x fzf-directory`
-- `M-x fzf-switch-buffer`
+
+### Searching for files:
 - `M-x fzf-find-file`
 - `M-x fzf-find-file-in-dir`
+- `M-x fzf-recentf`
+
+### Project-aware search:
 - `M-x fzf-git`
 - `M-x fzf-git-files`
+- `M-x fzf-git-grep`
 - `M-x fzf-hg`
 - `M-x fzf-projectile`
-- `M-x fzf-git-grep`
-- `M-x fzf-recentf`
+
+### Grep:
+> **Note**: `fzf-grep-*-with-narrowing` functions launch an interactive `fzf/grep-command` instead of using fuzzy filtering. [See the fzf advanced documentation for more details](https://github.com/junegunn/fzf/blob/master/ADVANCED.md).
 - `M-x fzf-grep`
+- `M-x fzf-grep-dwim`
 - `M-x fzf-grep-in-dir`
 - `M-x fzf-grep-with-narrowing`
+- `M-x fzf-grep-dwim-with-narrowing`
 - `M-x fzf-grep-in-dir-with-narrowing`
-- `M-x fzf-grep-dwim`
 
-But the real action is writing your own.
+### Using input from Emacs:
+- `M-x fzf-switch-buffer`
 
-fzf.el exposes three functions:
+## define custom functions
 
-- `fzf-with-entries (entries action &optional directory)`: run fzf, passing in an elisp list and running the function action with the user's selected results
-- `fzf-with-command (command action &optional directory)`: run a shell command and directly pass to fzf. An optimization on top of `fzf-with-entries` so that the output does not have to be stored in emacs before sending to fzf anyway.
+`fzf.el` exposes functions to let you interface with `fzf` however you'd like:
+
+- `fzf-with-command (command action &optional directory as-filter initq)`: Run `fzf` on the output of a shell command.
+    - `command`: The shell command whose output is passed to `fzf`.
+    - `action`: A function that handles the result of `fzf` (e.g. open a file, switch to a buffer, etc.). This package ships with two default actions that can handle opening a file and opening a file at a specific line.
+    - `directory`: Directory to execute `fzf` in.
+    - `as-filter`: If non-nil, use `command` as the filter instead of `fzf`'s fuzzy filtering. See `fzf-grep-*-with-narrowing` functions for example usages.
+    - `initq`: If `as-filter` is non-nil, `initq` will be used as the value for the `--query` option. If `as-filter` is nil, this does nothing.
+- `fzf-with-entries (entries action &optional directory)`: run fzf, passing in an elisp list and running the function action with the user's selected results.
 
 Using these functions, it's easy to define your own commands that use fzf:
 
