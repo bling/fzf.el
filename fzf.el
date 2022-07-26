@@ -166,7 +166,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     ;; This gets added back in `fzf/start`
     (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))))
 
-(defun fzf/start (directory action &optional cmd)
+(defun fzf/start (directory action &optional custom-args)
   (require 'term)
 
   ; Clean up existing fzf
@@ -178,9 +178,10 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
          (buf (get-buffer-create fzf/buffer-name))
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
-         (sh-cmd (concat (when cmd (concat cmd " | ")) fzf/executable " " fzf/args)))
+         (args (or custom-args fzf/args))
+         (sh-cmd (concat fzf/executable " " args)))
     (with-current-buffer buf
-      (setq default-directory (if directory directory "")))
+      (setq default-directory (or directory "")))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
     (make-term fzf/executable "sh" nil "-c" sh-cmd)
@@ -189,19 +190,19 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (linum-mode 0)
     (visual-line-mode 0)
 
-    (setq fzf-hook (fzf/after-term-handle-exit directory action))
-
     ;; disable various settings known to cause artifacts, see #1 for more details
-    (setq-local scroll-margin 0)
-    (setq-local scroll-conservatively 0)
-    (setq-local term-suppress-hard-newline t) ;for paths wider than the window
-    (setq-local show-trailing-whitespace nil)
-    (setq-local display-line-numbers nil)
-    (setq-local truncate-lines t)
+    (setq-local scroll-margin 0
+                scroll-conservatively 0
+                term-suppress-hard-newline t
+                show-trailing-whitespace nil
+                display-line-numbers nil
+                truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
     (term-char-mode)
-    (setq mode-line-format (format "   FZF  %s" directory))))
+    (setq fzf-hook (fzf/after-term-handle-exit directory action)
+          mode-line-format (format "   FZF  %s" (or directory "")))))
+
 
 (defun fzf/action-find-file (target)
   (when (file-exists-p target)
@@ -225,17 +226,37 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
   (fzf/start (fzf/resolve-directory) #'fzf/action-find-file)
 )
 
-(defun fzf-with-command (command action &optional directory)
+(defun fzf-with-command (command action &optional directory as-filter initq)
   "Run `fzf` on the output of COMMAND.
 
-If COMMAND is nil, use `FZF_DEFAULT_COMMAND`.
+If COMMAND is nil, use the default `FZF_DEFAULT_COMMAND`.
+Otherwise set `FZF_DEFAULT_COMMAND` to COMMAND.
+COMMAND can be a sequence of piped commands to input to FZF.
+
 ACTION is a function that takes a single argument, which is the
-selected result from `fzf`.  DIRECTORY is the directory to start in."
+selected result from `fzf`.
+
+DIRECTORY is the directory to start in.
+
+If AS-FILTER is non-nil, use command as the narrowing filter instead of fzf,
+with INITQ as the initial query, as explained here:
+https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interative-ripgrep-launcher
+E.g. If COMMAND is grep, use grep as a narrowing filter to interactively
+reduce the search space, instead of using fzf to filter (but not narrow)."
   (interactive)
   (if command
-      (fzf/start directory action command)
-    (fzf/start directory action))
-)
+      (let
+          ((process-environment (cons (concat "FZF_DEFAULT_COMMAND=" command "") process-environment))
+           (args (if as-filter
+                     (concat fzf/args
+                             " --disabled"
+                             " --query " initq
+                             " --bind \"change:reload:sleep 0.1; "
+                             fzf/grep-command
+                             " {q} || true\"")
+                   fzf/args)))
+        (fzf/start directory action args))
+    (fzf/start directory action)))
 
 ;;;###autoload
 (defun fzf-with-entries (entries action &optional directory)
@@ -327,15 +348,42 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 )
 
 ;;;###autoload
-(defun fzf-grep (search &optional directory)
+(defun fzf-grep (&optional search directory as-filter)
   "Call `fzf/grep-command` on SEARCH.
 
-Grep in `fzf/resolve-directory` using DIRECTORY if provided."
-  (interactive "sGrep: ")
+If SEARCH is nil, read input interactively.
+Grep in `fzf/resolve-directory` using DIRECTORY if provided.
+If AS-FILTER is non-nil, use grep as the narrowing filter instead of fzf."
+  (interactive)
   (let* ((dir (fzf/resolve-directory directory))
          (action #'fzf/action-find-file-with-line)
-         (cmd (concat fzf/grep-command " " search)))
-    (fzf/start dir action cmd)))
+         (pattern (or search
+                      (read-from-minibuffer (concat fzf/grep-command ": "))))
+         (cmd (concat fzf/grep-command " " pattern)))
+    (fzf-with-command cmd action dir as-filter pattern)))
+
+;;;###autoload
+(defun fzf-grep-in-dir (&optional directory as-filter)
+  "Call `fzf-grep` in DIRECTORY.
+
+If DIRECTORY is nil, read input interactively.
+If AS-FILTER is non-nil, use grep as the narrowing filter instead of fzf."
+  (interactive)
+  (let ((dir (or directory
+                 (read-directory-name "Directory: " fzf/directory-start))))
+    (fzf-grep nil dir as-filter)))
+
+;;;###autoload
+(defun fzf-grep-with-narrowing ()
+  "Call `fzf-grep` with grep as the narrowing filter."
+  (interactive)
+  (fzf-grep nil nil t))
+
+;;;###autoload
+(defun fzf-grep-in-dir-with-narrowing ()
+  "Call `fzf-grep-in-dir` with grep as the narrowing filter."
+  (interactive)
+  (fzf-grep-in-dir nil t))
 
 ;;;###autoload
 (defun fzf-grep-dwim ()
@@ -345,7 +393,17 @@ If `thing-at-point` is not a symbol, read input interactively."
   (interactive)
   (if (symbol-at-point)
       (fzf-grep (thing-at-point 'symbol))
-    (call-interactively #'fzf-grep)))
+    (fzf-grep)))
+
+;;;###autoload
+(defun fzf-grep-dwim-with-narrowing ()
+  "Call `fzf-grep` on `symbol-at-point`, with grep as the narrowing filter.
+
+If `thing-at-point` is not a symbol, read input interactively."
+  (interactive)
+  (if (symbol-at-point)
+      (fzf-grep (thing-at-point 'symbol) nil t)
+    (fzf-grep nil nil t)))
 
 ;;;###autoload
 (defun fzf-git ()
