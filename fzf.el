@@ -327,10 +327,11 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 )
 
 ;;;###autoload
-(defun fzf-find-file-in-dir (directory)
-  (interactive "sDirectory: ")
-  (fzf-find-file directory)
-)
+(defun fzf-find-file-in-dir (&optional directory)
+  (interactive)
+  (let ((dir (or directory
+                 (read-directory-name "Directory: " fzf/directory-start))))
+    (fzf-find-file dir)))
 
 ;;;###autoload
 (defun fzf-git-grep ()
