@@ -341,7 +341,6 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
                  (read-directory-name "Directory: " fzf/directory-start))))
     (fzf-find-file dir)))
 
-
 ;;;###autoload
 (defun fzf-git-grep ()
   "Starts a fzf session based on git grep result. The input comes
