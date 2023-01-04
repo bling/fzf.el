@@ -190,8 +190,9 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (when fzf/position-bottom (other-window 1))
     (make-term fzf/executable "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
-    (and (fboundp 'turn-off-evil-mode) (turn-off-evil-mode))
-    (linum-mode 0)
+    (and (fboundp #'turn-off-evil-mode) (turn-off-evil-mode))
+    (when (not (version<= "28.0.50" emacs-version))
+      (linum-mode 0))
     (visual-line-mode 0)
 
     ;; disable various settings known to cause artifacts, see #1 for more details
@@ -335,10 +336,11 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 )
 
 ;;;###autoload
-(defun fzf-find-file-in-dir (directory)
-  (interactive "sDirectory: ")
-  (fzf-find-file directory)
-)
+(defun fzf-find-file-in-dir (&optional directory)
+  (interactive)
+  (let ((dir (or directory
+                 (read-directory-name "Directory: " fzf/directory-start))))
+    (fzf-find-file dir)))
 
 ;;;###autoload
 (defun fzf-git-grep ()
