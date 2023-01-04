@@ -122,7 +122,7 @@ configuration.")
 
 ; Awkward internal, global variable to save the reference to the 'term-handle-exit hook so it can be
 ; deleted
-(setq fzf-hook nil)
+(defvar fzf-hook nil)
 
 (defun fzf-close()
   (interactive)
