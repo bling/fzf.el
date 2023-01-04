@@ -89,7 +89,7 @@ See `fzf/action-find-file-with-line` for details on how output is parsed."
 
 (defcustom fzf/position-bottom t
   "Set the position of the fzf window. Set to nil to position on top."
-  :type 'bool
+  :type 'boolean
   :group 'fzf)
 
 (defconst fzf/buffer-name "*fzf*"
@@ -122,7 +122,7 @@ configuration.")
 
 ; Awkward internal, global variable to save the reference to the 'term-handle-exit hook so it can be
 ; deleted
-(setq fzf-hook nil)
+(defvar fzf-hook nil)
 
 (defun fzf-close()
   (interactive)
@@ -166,10 +166,14 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     ;; This gets added back in `fzf/start`
     (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))))
 
+(defvar term-exec-hook)               ; prevent byte-compiler warning
+(defvar term-suppress-hard-newline)   ; prevent byte-compiler warning
+
 (defun fzf/start (directory action &optional custom-args)
   (require 'term)
 
-  ; Clean up existing fzf
+
+  ;; Clean up existing fzf
   (fzf-close)
 
   (window-configuration-to-register fzf/window-register)
@@ -216,7 +220,8 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
          (f (expand-file-name (nth 0 parts))))
     (when (file-exists-p f)
       (find-file f)
-      (goto-line (string-to-number (nth 1 parts))))
+      (goto-char (point-min))
+      (forward-line (string-to-number (nth 1 parts))))
   )
 )
 
@@ -297,10 +302,13 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
   ;    (fzf/resolve-directory directory)))
   (cond
    (directory directory)
-   ((fboundp #'projectile-project-root) (condition-case err (projectile-project-root) (error default-directory)))
-   (t default-directory)
-  )
-)
+   ((fboundp 'projectile-project-root)
+     (condition-case err
+        (projectile-project-root)
+      (error "Error: default-directory: %s; %s"
+             default-directory
+             (error-message-string err))))
+   (t default-directory)))
 
 
 ;;;###autoload
@@ -439,7 +447,10 @@ If `thing-at-point` is not a symbol, read input interactively."
   "Starts an fzf session at the root of the current projectile project."
   (interactive)
   (require 'projectile)
-  (fzf/start (or (projectile-project-root) default-directory) #'fzf/action-find-file))
+  (if (fboundp 'projectile-project-root)
+      (fzf/start (or (projectile-project-root) default-directory)
+                 #'fzf/action-find-file)
+    (error "projectile-project-root is not bound")))
 
 (defun fzf/test ()
   (fzf-with-entries
