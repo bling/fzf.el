@@ -353,9 +353,15 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 
 ;;;###autoload
 (defun fzf-recentf ()
+  "Start a fzf session with the list of recently opened files."
   (interactive)
-  (fzf-with-entries recentf-list #'fzf/action-find-file)
-)
+  (if (bound-and-true-p 'recentf-list)
+      (fzf-with-entries recentf-list #'fzf/action-find-file)
+    (user-error "No recently opened files.%s"
+                (if (boundp 'recentf-list)
+                    ""
+                  " recentf-mode is not active!"))))
+
 
 ;;;###autoload
 (defun fzf-grep (&optional search directory as-filter)
