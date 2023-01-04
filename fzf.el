@@ -89,7 +89,7 @@ See `fzf/action-find-file-with-line` for details on how output is parsed."
 
 (defcustom fzf/position-bottom t
   "Set the position of the fzf window. Set to nil to position on top."
-  :type 'bool
+  :type 'boolean
   :group 'fzf)
 
 (defconst fzf/buffer-name "*fzf*"
