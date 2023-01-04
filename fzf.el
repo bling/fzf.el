@@ -355,7 +355,7 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 (defun fzf-recentf ()
   "Start a fzf session with the list of recently opened files."
   (interactive)
-  (if (bound-and-true-p 'recentf-list)
+  (if (bound-and-true-p recentf-list)
       (fzf-with-entries recentf-list #'fzf/action-find-file)
     (user-error "No recently opened files.%s"
                 (if (boundp 'recentf-list)
