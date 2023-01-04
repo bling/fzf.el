@@ -172,7 +172,6 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
 (defun fzf/start (directory action &optional custom-args)
   (require 'term)
 
-
   ;; Clean up existing fzf
   (fzf-close)
 
@@ -190,7 +189,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (when fzf/position-bottom (other-window 1))
     (make-term fzf/executable "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
-    (and (fboundp #'turn-off-evil-mode) (turn-off-evil-mode))
+    (and (fboundp 'turn-off-evil-mode) (turn-off-evil-mode))
     (when (not (version<= "28.0.50" emacs-version))
       (linum-mode 0))
     (visual-line-mode 0)
@@ -204,7 +203,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (setq-local truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
-    (term-char-mode)
+    (and (fboundp 'term-char-mode) (term-char-mode))
     (setq fzf-hook (fzf/after-term-handle-exit directory action)
           mode-line-format (format "   FZF  %s" (or directory "")))))
 
@@ -353,9 +352,15 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
 
 ;;;###autoload
 (defun fzf-recentf ()
+  "Start a fzf session with the list of recently opened files."
   (interactive)
-  (fzf-with-entries recentf-list #'fzf/action-find-file)
-)
+  (if (bound-and-true-p recentf-list)
+      (fzf-with-entries recentf-list #'fzf/action-find-file)
+    (user-error "No recently opened files.%s"
+                (if (boundp 'recentf-list)
+                    ""
+                  " recentf-mode is not active!"))))
+
 
 ;;;###autoload
 (defun fzf-grep (&optional search directory as-filter)
