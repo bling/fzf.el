@@ -296,10 +296,13 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
   ;    (fzf/resolve-directory directory)))
   (cond
    (directory directory)
-   ((fboundp #'projectile-project-root) (condition-case err (projectile-project-root) (error default-directory)))
-   (t default-directory)
-  )
-)
+   ((fboundp #'projectile-project-root)
+    (condition-case err
+        (projectile-project-root)
+      (error "Error: default-directory: %s; %s"
+             default-directory
+             (error-message-string err))))
+   (t default-directory)))
 
 
 ;;;###autoload
