@@ -192,12 +192,12 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (visual-line-mode 0)
 
     ;; disable various settings known to cause artifacts, see #1 for more details
-    (setq-local scroll-margin 0
-                scroll-conservatively 0
-                term-suppress-hard-newline t
-                show-trailing-whitespace nil
-                display-line-numbers nil
-                truncate-lines t)
+    (setq-local scroll-margin 0)
+    (setq-local scroll-conservatively 0)
+    (setq-local term-suppress-hard-newline t)
+    (setq-local show-trailing-whitespace nil)
+    (setq-local display-line-numbers nil)
+    (setq-local truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
     (term-char-mode)
