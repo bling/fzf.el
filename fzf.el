@@ -172,7 +172,6 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
 (defun fzf/start (directory action &optional custom-args)
   (require 'term)
 
-
   ;; Clean up existing fzf
   (fzf-close)
 
@@ -204,7 +203,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (setq-local truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
-    (term-char-mode)
+    (and (fboundp 'term-char-mode) (term-char-mode))
     (setq fzf-hook (fzf/after-term-handle-exit directory action)
           mode-line-format (format "   FZF  %s" (or directory "")))))
 
