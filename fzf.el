@@ -187,7 +187,8 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (make-term fzf/executable "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
     (and (fboundp #'turn-off-evil-mode) (turn-off-evil-mode))
-    (linum-mode 0)
+    (when (not (version<= "28.0.50" emacs-version))
+      (linum-mode 0))
     (visual-line-mode 0)
 
     ;; disable various settings known to cause artifacts, see #1 for more details
