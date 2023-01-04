@@ -166,10 +166,14 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     ;; This gets added back in `fzf/start`
     (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))))
 
+(defvar term-exec-hook)               ; prevent byte-compiler warning
+(defvar term-suppress-hard-newline)   ; prevent byte-compiler warning
+
 (defun fzf/start (directory action &optional custom-args)
   (require 'term)
 
-  ; Clean up existing fzf
+
+  ;; Clean up existing fzf
   (fzf-close)
 
   (window-configuration-to-register fzf/window-register)
@@ -186,7 +190,7 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
     (when fzf/position-bottom (other-window 1))
     (make-term fzf/executable "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
-    (and (fboundp #'turn-off-evil-mode) (turn-off-evil-mode))
+    (and (fboundp 'turn-off-evil-mode) (turn-off-evil-mode))
     (linum-mode 0)
     (visual-line-mode 0)
 
@@ -215,7 +219,8 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
          (f (expand-file-name (nth 0 parts))))
     (when (file-exists-p f)
       (find-file f)
-      (goto-line (string-to-number (nth 1 parts))))
+      (goto-char (point-min))
+      (forward-line (string-to-number (nth 1 parts))))
   )
 )
 
@@ -296,8 +301,8 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
   ;    (fzf/resolve-directory directory)))
   (cond
    (directory directory)
-   ((fboundp #'projectile-project-root)
-    (condition-case err
+   ((fboundp 'projectile-project-root)
+     (condition-case err
         (projectile-project-root)
       (error "Error: default-directory: %s; %s"
              default-directory
@@ -440,7 +445,10 @@ If `thing-at-point` is not a symbol, read input interactively."
   "Starts an fzf session at the root of the current projectile project."
   (interactive)
   (require 'projectile)
-  (fzf/start (or (projectile-project-root) default-directory) #'fzf/action-find-file))
+  (if (fboundp 'projectile-project-root)
+      (fzf/start (or (projectile-project-root) default-directory)
+                 #'fzf/action-find-file)
+    (error "projectile-project-root is not bound")))
 
 (defun fzf/test ()
   (fzf-with-entries
