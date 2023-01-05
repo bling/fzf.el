@@ -142,20 +142,37 @@ configuration.")
 )
 
 (defun fzf/after-term-handle-exit (directory action)
-  "Create a lambda to handle the result of fzf.
+  "Create and return lambda that handles the result of fzf.
 
-The lambda must conform to `term-handle-exit`, i.e. accept two arguments -
-a process name, and output msg.
+The lambda must conform to `term-handle-exit':  i.e. accept 2 arguments:
+1) a process name, 2) an output msg.
+
 The lambda will call ACTION on the result of fzf if fzf exited successfully.
-If DIRECTORY is provided, it is prepended to the result of fzf."
-  (lambda (_ msg)
+DIRECTORY, if non-nil, is prepended to the result of fzf."
+  (lambda (process-name msg)
     (let* ((exit-code (fzf/exit-code-from-event msg))
            (text (buffer-substring-no-properties (point-min) (point-max)))
            (lines (split-string text "\n" t "\s*>\s+"))
-           (target (concat
-                    (if directory
-                        (file-name-as-directory directory))
-                    (car (last (butlast lines))))))
+           (target (string-trim
+                    (concat
+                     (when directory
+                       (file-name-as-directory directory))
+                     (car (last (butlast lines))))))
+           (orig-target target))
+      ;; Sometimes the string returned by fzf has extraneous characters at the
+      ;; end of the real/correct file name. Attempt to extract the correct
+      ;; file name by stripping 1 character at a time from the end.
+      (unless (file-exists-p target)
+        (while (and  (not (string= "" target))
+                     (not (file-exists-p target)))
+          (setq target (substring target 0 -1))))
+      ;; report any remaining error by message instead of exception since
+      ;; we're in a handler we can't interrupt and provides a better trace.
+      (when (or (string= "" target)
+                (not (file-exists-p target)))
+        (message "TERMINATING: process:[%s], msg:[%s]" process-name msg )
+        (message "FZF PROBLEM: non existing file identified [%s]" orig-target)
+        (message "FZF returned text: [%s]" text))
       ;; Kill the fzf buffer and restore the previous window configuration.
       (kill-buffer fzf/buffer-name)
       (jump-to-register fzf/window-register)
@@ -164,7 +181,8 @@ If DIRECTORY is provided, it is prepended to the result of fzf."
       (when (string= "0" exit-code) (funcall action target)))
     ;; Remove this advice so as to not interfere with other usages of `term`.
     ;; This gets added back in `fzf/start`
-    (advice-remove 'term-handle-exit (fzf/after-term-handle-exit directory action))))
+    (advice-remove 'term-handle-exit
+                   (fzf/after-term-handle-exit directory action))))
 
 (defvar term-exec-hook)               ; prevent byte-compiler warning
 (defvar term-suppress-hard-newline)   ; prevent byte-compiler warning
