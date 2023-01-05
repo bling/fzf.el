@@ -125,8 +125,7 @@ configuration.")
 (defvar fzf-hook nil)
 
 (defun fzf-close()
-  (interactive)
-
+  "Cleanup hooks and process."
   ; Remove hook first so it doesn't trigger when process is killed
   (when fzf-hook (advice-remove 'term-handle-exit fzf-hook))
   (setq fzf-hook nil)
@@ -138,8 +137,7 @@ configuration.")
   ; Kill buffer and restore window
   (when (get-buffer fzf/buffer-name)
     (kill-buffer fzf/buffer-name)
-    (jump-to-register fzf/window-register))
-)
+    (jump-to-register fzf/window-register)))
 
 (defun fzf/after-term-handle-exit (directory action)
   "Create and return lambda that handles the result of fzf.
@@ -244,10 +242,12 @@ DIRECTORY, if non-nil, is prepended to the result of fzf."
 
 ;;;###autoload
 (defun fzf ()
-  "Starts a fzf session."
+  "Starts a fzf session in the appropriate directory.
+
+The selected directory is projectile's root directory if projectile
+is used, otherwise the current working directory is used."
   (interactive)
-  (fzf/start (fzf/resolve-directory) #'fzf/action-find-file)
-)
+  (fzf/start (fzf/resolve-directory) #'fzf/action-find-file))
 
 (defun fzf-with-command (command action &optional directory as-filter initq)
   "Run `fzf` on the output of COMMAND.
@@ -263,13 +263,14 @@ DIRECTORY is the directory to start in.
 
 If AS-FILTER is non-nil, use command as the narrowing filter instead of fzf,
 with INITQ as the initial query, as explained here:
-https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interative-ripgrep-launcher
+https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interactive-ripgrep-launcher
 E.g. If COMMAND is grep, use grep as a narrowing filter to interactively
 reduce the search space, instead of using fzf to filter (but not narrow)."
-  (interactive)
   (if command
       (let
-          ((process-environment (cons (concat "FZF_DEFAULT_COMMAND=" command "") process-environment))
+          ((process-environment (cons
+                                 (concat "FZF_DEFAULT_COMMAND=" command "")
+                                 process-environment))
            (args (if as-filter
                      (concat fzf/args
                              " --disabled"
@@ -286,13 +287,14 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
   "Run `fzf` with the list ENTRIES as input.
 
 ACTION is a function that takes a single argument, which is the
-selected result from `fzf`. DIRECTORY is the directory to start in"
-  (interactive)
+selected result from `fzf`.
+If DIRECTORY is specified, fzf is run from that directory."
   (if entries
-    (fzf-with-command (concat "echo \"" (mapconcat (lambda (x) x) entries "\n") "\"") action directory)
-    (message "FZF not started because contents nil")
-  )
-)
+      (fzf-with-command
+       (concat "echo \""
+               (mapconcat (lambda (x) x) entries "\n") "\"")
+       action directory)
+    (user-error "No input entries specified")))
 
 ;;;###autoload
 (defun fzf-directory ()
@@ -303,57 +305,52 @@ selected result from `fzf`. DIRECTORY is the directory to start in"
                (lambda (x)
                  (let ((f (expand-file-name x d)))
                    (when (file-exists-p f)
-                     (find-file f)))))
-  )
-)
+                     (find-file f)))))))
 
 (defun fzf/resolve-directory (&optional directory)
-  ; An example function to resolve a directory in a user command, before passing it to fzf. Here if
-  ; directory is undefined, attempt to use the projectile root. Users can define their own as
-  ; desired
-  ;
-  ; Example usage:
-  ; (defun fzf-example ()
-  ;   (fzf
-  ;    (lambda (x) (print x))
-  ;    (fzf/resolve-directory directory)))
+  "Identify and return directory to perform fzf search.
+
+Return DIRECTORY if specified, the projectile project root if
+projectile is used otherwise return the current working directory.
+
+Example usage:
+
+  (defun fzf-example ()
+    (fzf  (lambda (x) (print x))
+          (fzf/resolve-directory directory)))"
   (cond
    (directory directory)
    ((fboundp 'projectile-project-root)
-     (condition-case err
+    (condition-case nil
         (projectile-project-root)
-      (error "Error: default-directory: %s; %s"
-             default-directory
-             (error-message-string err))))
+      (error default-directory)))
    (t default-directory)))
 
 
 ;;;###autoload
 (defun fzf-switch-buffer ()
+  "Switch buffer selecting them with fzf."
   (interactive)
   (fzf-with-entries
    (seq-filter
     (lambda (x) (not (string-prefix-p " " x)))
-    (mapcar (function buffer-name) (buffer-list))
-   )
-    (lambda (x) (set-window-buffer nil x))
-  )
-)
+    (mapcar (function buffer-name) (buffer-list)))
+   (lambda (x) (set-window-buffer nil x))))
 
 ;;;###autoload
 (defun fzf-find-file (&optional directory)
+  "Find file in projectile project (if used), current or specified DIRECTORY."
   (interactive)
   (let ((d (fzf/resolve-directory directory)))
     (fzf/start d
                (lambda (x)
                  (let ((f (expand-file-name x d)))
                    (when (file-exists-p f)
-                     (find-file f)))))
-  )
-)
+                     (find-file f)))))))
 
 ;;;###autoload
 (defun fzf-find-file-in-dir (&optional directory)
+  "Find file in specified DIRECTORY or prompt for it."
   (interactive)
   (let ((dir (or directory
                  (read-directory-name "Directory: " fzf/directory-start))))
