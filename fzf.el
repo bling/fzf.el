@@ -240,6 +240,9 @@ DIRECTORY, if non-nil, is prepended to the result of fzf."
   ;; Clean up existing fzf, allowing multiple action types.
   (fzf--close)
 
+  (unless (executable-find fzf/executable)
+    (user-error "Can't find fzf/executable '%s'. Is it in your OS PATH?"
+                fzf/executable))
   ;; launch process in an inferior terminal mapped in current window
   (window-configuration-to-register fzf/window-register)
   (advice-add 'term-handle-exit
