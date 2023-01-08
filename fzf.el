@@ -35,19 +35,40 @@
 ;;
 ;; Usage:
 ;;
-;; M-x fzf
-;; M-x fzf-directory
-;; M-x fzf-switch-buffer
-;; M-x fzf-find-file
-;; M-x fzf-find-file-in-dir
-;; M-x fzf-git
-;; M-x fzf-git-files
-;; M-x fzf-hg
-;; M-x fzf-projectile
-;; M-x fzf-git-grep
-;; M-x fzf-recentf
-;; M-x fzf-grep
-;; M-x fzf-grep-dwim
+;; - Generic:
+;;    M-x fzf
+;;    M-x fzf-directory
+;;
+;; - Buffer Navigation support:
+;;    M-x fzf-switch-buffer
+;;
+;; - Find support:
+;;    M-x fzf-find-file
+;;    M-x fzf-find-file-in-dir
+;;
+;; - Recentf support
+;;    M-x fzf-recentf
+;;
+;; - Grep support:
+;;    M-x fzf-grep
+;;    M-x fzf-grep-in-dir
+;;    M-x fzf-grep-with-narrowing
+;;    M-x fzf-grep-in-dir-with-narrowing
+;;    M-x fzf-grep-dwim
+;;    M-x fzf-grep-dwim-with-narrowing
+;;
+;; - VCS Support:
+;;    M-x fzf-git
+;;    M-x fzf-git-files
+;;    M-x fzf-hg
+;;    M-x fzf-hg-files
+;;
+;; - VCS/grep support:
+;;    M-x fzf-git-grep
+;;
+;; - Projectile Support
+;;    M-x fzf-projectile
+
 ;;
 ;; Naming conventions:
 ;;
@@ -504,36 +525,59 @@ If `thing-at-point` is not a symbol, read input interactively."
       (fzf-grep (thing-at-point 'symbol) nil t)
     (fzf-grep nil nil t)))
 
-;;;###autoload
-(defun fzf-git ()
-  "Starts an fzf session at the root of the current git project."
-  (interactive)
+;; ---------------------------------------------------------------------------
+;; VCS Support
+
+;; Internal helper function
+(defun fzf--vcs (vcs-name root-filename)
+  "Run FZF in the VCS-NAME directory holding ROOT-FILENAME."
   (let ((fzf-target-validator (function fzf--validate-filename))
-        (path (locate-dominating-file default-directory ".git")))
+        (path (locate-dominating-file default-directory root-filename)))
     (if path
-        (fzf--start path #'fzf--action-find-file)
-      (user-error "Not inside a Git repository"))))
+        (fzf--start path (function fzf--action-find-file))
+      (user-error "Not inside a %s repository" vcs-name))))
+
+(defun fzf--vcs-command (vcs-name root-filename command)
+  "Run FZF specific COMMAND in the VCS-NAME directory holding ROOT-FILENAME."
+  (let ((fzf-target-validator (function fzf--validate-filename))
+        (path (locate-dominating-file default-directory root-filename)))
+    (if path
+        (fzf-with-command command (function fzf--action-find-file) path)
+      (user-error "Not inside a %s repository" vcs-name))))
 
 ;;;###autoload
-(defun fzf-hg ()
-  "Starts an fzf session at the root of the current hg project."
+(defun fzf-git ()
+  "Starts an fzf session at the root of the current git repo.
+
+Search *all* files in the repository directory tree."
   (interactive)
-  (let ((fzf-target-validator (function fzf--validate-filename))
-        (path (locate-dominating-file default-directory ".hg")))
-    (if path
-        (fzf--start path #'fzf--action-find-file)
-      (user-error "Not inside a .hg repository"))))
+  (fzf--vcs "Git" ".git"))
 
 ;;;###autoload
 (defun fzf-git-files ()
-  "Starts an fzf session for tracked files in the current git project."
-  (interactive)
-  (let ((fzf-target-validator (function fzf--validate-filename))
-        (path (locate-dominating-file default-directory ".git")))
-    (if path
-        (fzf-with-command "git ls-files" #'fzf--action-find-file path)
-      (user-error "Not inside a Git repository"))))
+  "Starts an fzf session for tracked files in the current Git repo.
 
+Only search files that have been committed."
+  (interactive)
+  (fzf--vcs-command "Git" ".git" "git ls-files"))
+
+;;;###autoload
+(defun fzf-hg ()
+  "Starts an fzf session at the root of the current hg repo.
+
+Search *all* files in the repository directory tree."
+  (interactive)
+  (fzf--vcs "Mercurial" ".hg"))
+
+;;;###autoload
+(defun fzf-hg-files ()
+  "Starts an fzf session for tracked files in the current Mercurial repo.
+
+Only search files that have been committed."
+  (interactive)
+  (fzf--vcs-command "Mercurial" ".hg" "hg manifest"))
+
+;; ---------------------------------------------------------------------------
 ;;;###autoload
 (defun fzf-projectile ()
   "Starts an fzf session at the root of the current projectile project."
