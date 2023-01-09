@@ -451,16 +451,6 @@ Example usage:
     (fzf-find-file dir)))
 
 ;;;###autoload
-(defun fzf-git-grep ()
-  "Starts a fzf session based on git grep result. The input comes
-   from the prompt or the selected region."
-  (interactive)
-  (let ((fzf-target-validator (function fzf--pass-through)))
-    (fzf-with-command (fzf--grep-cmd "git grep" fzf/git-grep-args)
-                      #'fzf--action-find-file-with-line
-                      (locate-dominating-file default-directory ".git"))))
-
-;;;###autoload
 (defun fzf-recentf ()
   "Start a fzf session with the list of recently opened files."
   (interactive)
@@ -569,6 +559,15 @@ Only search files that have been committed."
   (interactive)
   (fzf--vcs-command "Git" ".git" "git ls-files"))
 
+;;;###autoload
+(defun fzf-git-grep ()
+  "Starts a fzf session based on git grep result. The input comes
+   from the prompt or the selected region."
+  (interactive)
+  (let ((fzf-target-validator (function fzf--pass-through)))
+    (fzf-with-command (fzf--grep-cmd "git grep" fzf/git-grep-args)
+                      #'fzf--action-find-file-with-line
+                      (locate-dominating-file default-directory ".git"))))
 ;;;###autoload
 (defun fzf-hg ()
   "Starts an fzf session at the root of the current hg repo.
