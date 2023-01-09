@@ -94,7 +94,10 @@
   :group 'fzf)
 
 (defcustom fzf/executable "fzf"
-  "The path to the fzf executable."
+  "The name of the fzf executable.
+
+If the executable file is NOT accessible through your PATH,
+write the absolute path of the executable to use."
   :type 'string
   :group 'fzf)
 
@@ -104,7 +107,7 @@
   :group 'fzf)
 
 (defcustom fzf/grep-command "grep -nrH"
-  "Command used for `fzf-grep-*` functions.
+  "Command line used for `fzf-grep-*` functions.
 
 Output of this command must be in the form <FILE>:<LINE NUMBER>:<LINE>.
 See `fzf--action-find-file-with-line` for details on how output is parsed."
@@ -124,14 +127,16 @@ See `fzf--action-find-file-with-line` for details on how output is parsed."
 (defconst fzf/buffer-name "*fzf*"
   "The name of the fzf buffer")
 
-(defconst fzf/window-register :fzf-windows
-  "A single character for fzf to save/restore the window
-configuration.")
-
 (defcustom fzf/directory-start nil
   "The path of the default start directory for fzf-directory."
   :type 'string
   :group 'fzf)
+
+;; ---------------------------------------------------------------------------
+;; Internal variables
+
+(defconst fzf--window-register :fzf-windows
+  "Internal register used by fzf to save/restore the window configuration.")
 
 ;; ---------------------------------------------------------------------------
 
@@ -170,7 +175,7 @@ configuration.")
   ; Kill buffer and restore window
   (when (get-buffer fzf/buffer-name)
     (kill-buffer fzf/buffer-name)
-    (jump-to-register fzf/window-register)))
+    (jump-to-register fzf--window-register)))
 
 ;; Internal helper function
 (defun fzf--pass-through (target _text _msg _process-name)
@@ -241,7 +246,7 @@ DIRECTORY, if non-nil, is prepended to the result of fzf."
       (setq target (funcall target-validator target text msg process-name))
       ;; Kill the fzf buffer and restore the previous window configuration.
       (kill-buffer fzf/buffer-name)
-      (jump-to-register fzf/window-register)
+      (jump-to-register fzf--window-register)
       (message (format "FZF exited with code %s" exit-code))
       ;; Only do something with the result if fzf was successful.
       (when (string= "0" exit-code) (funcall action target)))
@@ -264,8 +269,9 @@ DIRECTORY, if non-nil, is prepended to the result of fzf."
   (unless (executable-find fzf/executable)
     (user-error "Can't find fzf/executable '%s'. Is it in your OS PATH?"
                 fzf/executable))
+
   ;; launch process in an inferior terminal mapped in current window
-  (window-configuration-to-register fzf/window-register)
+  (window-configuration-to-register fzf--window-register)
   (advice-add 'term-handle-exit
               :after (fzf--after-term-handle-exit directory
                                                   action
@@ -468,11 +474,13 @@ Example usage:
 
 ;;;###autoload
 (defun fzf-grep (&optional search directory as-filter)
-  "Call `fzf/grep-command` on SEARCH.
+  "FZF search filtered on a grep search result.
 
-If SEARCH is nil, read input interactively.
-Grep in `fzf--resolve-directory` using DIRECTORY if provided.
-If AS-FILTER is non-nil, use grep as the narrowing filter instead of fzf."
+- SEARCH is the end of the grep command line;  typically holding the regexp
+  identifying what to search and the glob pattern to identify the file that
+  must be searched.  If SEARCH is nil, read input interactively.
+- Grep in `fzf--resolve-directory` using DIRECTORY if provided.
+- If AS-FILTER is non-nil, use grep as the narrowing filter instead of fzf."
   (interactive)
   (let* ((fzf-target-validator (function fzf--pass-through))
          (dir (fzf--resolve-directory directory))
