@@ -169,9 +169,16 @@ See `fzf--action-find-file-with-line` for details on how output is parsed."
 ;; Public variables
 ;; ----------------
 
-;; The `fzf-extractor-list' is not bound by default.  If you need it let-bind
-;; it inside your code.  See the extraction logic comments in the commentaty
-;; section above.
+;; The `fzf-extractor-list' variable is not bound by default.  If you need it
+;; let-bind it inside your code.  See the extraction logic comments in the
+;; commentary section above.
+
+;; The `fzf-target-validator' variable is not bound by default.  Bind it
+;; inside your function calling on of the fzf commands only if you need to use
+;; a different validator function than what the fzf command use.  The fzf
+;; commands use either `fzf--pass-through' or `fzf--validate-filename'.  You
+;; can override them by let-binding the `fzf-target-validator' variable to the
+;; function you want to use.
 
 ;; ---------------------------------------------------------------------------
 ;; Internal variables
@@ -208,7 +215,7 @@ Match:
 - group 3: line number.")
 
 (defvar fzf--target-validator  (function fzf--validate-filename)
-  "FZF found target validator & filter function.
+  "Internal FZF found target validator & filter function.
 
   - Takes 4 arguments: (target text msg process-name)
   - Returns target (a string).  If that target is valid,
@@ -223,7 +230,7 @@ Match:
   `fzf--after-term-handle-exit' which uses the validator.")
 
 (defvar fzf--extractor-list nil
-  "List of (regexp file-group line-group) for data extraction.
+  "Internal list of (regexp file-group line-group) for data extraction.
 
 The list members are:
 
@@ -449,6 +456,26 @@ The returned lambda requires extra context information:
             (error "Found non-existing file: '%s'" fname)))
       (error "Nothing matching! Is regexp ok?: '%s'" regexp))))
 
+;; Internal helper function
+(defun fzf--use-validator (validator)
+  "Return  fzf-target-validator if bound, otherwise VALIDATOR.
+
+The fzf-target-validator variable must be bound to a function that performs
+the file name validation.  See `fzf--validate-filename' and
+`fzf--pass-through' as examples of valid validators."
+  (if (bound-and-true-p fzf-target-validator)
+      fzf-target-validator
+    validator))
+
+;; Internal helper function
+(defun fzf--use-extractor (extractor)
+  "Return fzf-extractor-list if bound, otherwise EXTRACTOR."
+  (if (bound-and-true-p fzf-extractor-list)
+      fzf-extractor-list
+    extractor))
+
+;; ---------------------------------------------------------------------------
+
 ;;;###autoload
 (defun fzf ()
   "Starts a fzf session in the appropriate directory.
@@ -456,7 +483,8 @@ The returned lambda requires extra context information:
 The selected directory is projectile's root directory if projectile
 is used, otherwise the current working directory is used."
   (interactive)
-  (let ((fzf--target-validator (function fzf--validate-filename)))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--validate-filename))))
     (fzf--start (fzf--resolve-directory) #'fzf--action-find-file)))
 
 ;; Public utility
@@ -511,7 +539,8 @@ If DIRECTORY is specified, fzf is run from that directory."
 (defun fzf-directory ()
   "Starts a fzf session at the specified directory."
   (interactive)
-  (let ((fzf--target-validator (function fzf--validate-filename))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--validate-filename)))
         (d (read-directory-name "Directory: " fzf/directory-start)))
     (fzf--start d
                 (lambda (x)
@@ -543,7 +572,8 @@ Example usage:
 (defun fzf-switch-buffer ()
   "Switch buffer selecting them with fzf."
   (interactive)
-  (let ((fzf--target-validator (function fzf--pass-through)))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--pass-through))))
     (fzf-with-entries
      (seq-filter
       (lambda (x) (not (string-prefix-p " " x)))
@@ -554,7 +584,8 @@ Example usage:
 (defun fzf-find-file (&optional directory)
   "Find file in projectile project (if used), current or specified DIRECTORY."
   (interactive)
-  (let ((fzf--target-validator (function fzf--validate-filename))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--validate-filename)))
         (d (fzf--resolve-directory directory)))
     (fzf--start d
                (lambda (x)
@@ -574,7 +605,8 @@ Example usage:
 (defun fzf-recentf ()
   "Start a fzf session with the list of recently opened files."
   (interactive)
-  (let ((fzf--target-validator (function fzf--pass-through)))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--pass-through))))
     (if (bound-and-true-p recentf-list)
         (fzf-with-entries recentf-list #'fzf--action-find-file)
       (user-error "No recently opened files.%s"
@@ -606,15 +638,15 @@ File name & Line extraction:
     one dash after 'fzf'!  It's not the same as the internal
     `fzf--extractor-list' variable!"
   (interactive)
-  (let* ((fzf--target-validator (function fzf--pass-through))
+  (let* ((fzf--target-validator (fzf--use-validator
+                                 (function fzf--pass-through)))
          (dir (fzf--resolve-directory directory))
          (action #'fzf--action-find-file-with-line)
          (pattern (or search
                       (read-from-minibuffer (concat fzf/grep-command ": "))))
          (cmd (concat fzf/grep-command " " pattern))
-         (fzf--extractor-list (if (bound-and-true-p fzf-extractor-list)
-                                  fzf-extractor-list
-                                (list fzf--file-lnum-regexp 1 2))))
+         (fzf--extractor-list (fzf--use-extractor
+                               (list fzf--file-lnum-regexp 1 2))))
     (fzf-with-command cmd action dir as-filter pattern)))
 
 ;;;###autoload
@@ -681,7 +713,8 @@ The same note applies here."
 ;; Internal helper function
 (defun fzf--vcs (vcs-name root-filename)
   "Run FZF in the VCS-NAME directory holding ROOT-FILENAME."
-  (let ((fzf--target-validator (function fzf--validate-filename))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--validate-filename)))
         (path (locate-dominating-file default-directory root-filename)))
     (if path
         (fzf--start path (function fzf--action-find-file))
@@ -689,7 +722,8 @@ The same note applies here."
 
 (defun fzf--vcs-command (vcs-name root-filename command)
   "Run FZF specific COMMAND in the VCS-NAME directory holding ROOT-FILENAME."
-  (let ((fzf--target-validator (function fzf--validate-filename))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--validate-filename)))
         (path (locate-dominating-file default-directory root-filename)))
     (if path
         (fzf-with-command command (function fzf--action-find-file) path)
@@ -731,10 +765,10 @@ This command only greps in the *current* version of the files.
 See note about file & line extraction in `fzf-grep'.
 The same note applies here."
   (interactive)
-  (let ((fzf--target-validator (function fzf--pass-through))
-        (fzf--extractor-list (if (bound-and-true-p fzf-extractor-list)
-                                 fzf-extractor-list
-                               (list fzf--file-lnum-regexp 1 2))))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--pass-through)))
+        (fzf--extractor-list (fzf--use-extractor
+                              (list fzf--file-lnum-regexp 1 2))))
     (fzf-with-command (fzf--grep-cmd "git grep" fzf/git-grep-args)
                       #'fzf--action-find-file-with-line
                       (locate-dominating-file default-directory ".git"))))
@@ -779,10 +813,10 @@ File name & Line extraction:
     `fzf--extractor-list' variable!"
   (interactive "P")
   ;; TODO : add ability to select revision range interactively
-  (let ((fzf--target-validator (function fzf--pass-through))
-        (fzf--extractor-list (if (bound-and-true-p fzf-extractor-list)
-                                 fzf-extractor-list
-                               (list fzf--file-rnum-lnum-regexp 1 3))))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--pass-through)))
+        (fzf--extractor-list (fzf--use-extractor
+                              (list fzf--file-rnum-lnum-regexp 1 3))))
     (fzf-with-command (fzf--grep-cmd
                        (if all-revs
                            "hg grep --all"
@@ -798,7 +832,8 @@ File name & Line extraction:
   (interactive)
   (require 'projectile)
   (if (fboundp 'projectile-project-root)
-      (let ((fzf--target-validator (function fzf--validate-filename)))
+      (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--validate-filename))))
         (fzf--start (or (projectile-project-root) default-directory)
                     #'fzf--action-find-file))
     (error "projectile-project-root is not bound")))
@@ -808,7 +843,8 @@ File name & Line extraction:
 ;; test function
 (defun fzf/test ()
   "Test ability to handle simple strings."
-  (let ((fzf--target-validator (function fzf--pass-through)))
+  (let ((fzf--target-validator (fzf--use-validator
+                                (function fzf--pass-through))))
     (fzf-with-entries
      (list "a" "b" "c")
      (lambda (x) (print x)))))
