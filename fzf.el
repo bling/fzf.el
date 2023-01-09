@@ -135,11 +135,46 @@ write the absolute path of the executable to use."
   :group 'fzf)
 
 (defcustom fzf/grep-command "grep -nrH"
-  "Command line used for `fzf-grep-*` functions.
+  "Recursive grep-like command line used for `fzf-grep-*` functions.
 
-Output of this command must be in the form <FILE>:<LINE NUMBER>:<LINE>.
-See `fzf--action-find-file-with-line` for details on how output is parsed."
-  :type 'string
+Identifies a command line that searches in a directory tree and
+produces a set of matching line that must all follow the format
+identified by the `fzf--file-lnum-regexp' regular expression,
+which is: <FILE>:<LINE NUMBER>:<text>.
+
+The following options are available:
+
+- 1: use grep with 'grep -rnH' by default,
+- 2: use ripgrep with 'rg --no-heading --color never --line-number' by
+    default,
+- 3: something else, entirely specified in the option.
+     Nothing is specified here; You must fill the command line.
+
+The command line for each option is maintained independently and
+can be modified.
+
+The first one, grep, is the default.
+
+- When using grep the user must identify the search pattern and the glob pattern
+  for the files to search inside the tree.
+- When using ripgrep, the user does not need to describe the files searched
+  but can identify them in several ways:
+
+  - using the -g, --glob GLOB option to specify the directories.
+  - using the -t, --type TYPE option to specify the type of files to
+    search.
+  - There are many other options, consult rg man page for more information.
+  - You can also append the trailing '--' to ensure that the entered string
+    is not interpreted as a ripgrep command line switch but that will prevent
+    the user to add more ripgrep options.
+
+See `fzf--action-find-file-with-line' for details on how output is parsed."
+  :type '(choice
+          (string :tag "Use grep with" "grep -nrH")
+          (string :tag "Use ripgrep with" "rg --no-heading --color never -n")
+          (string :tag "Something else" "" ))
+  :link '(url-link :tag "ripgrep @ GitHub"
+                   "https://github.com/BurntSushi/ripgrep")
   :group 'fzf)
 
 (defcustom fzf/git-grep-args "-i --line-number %s"
