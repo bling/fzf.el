@@ -321,7 +321,7 @@ DIRECTORY, if non-nil, is prepended to the result of fzf."
     (when (file-exists-p f)
       (find-file f)
       (goto-char (point-min))
-      (forward-line (string-to-number (nth 1 parts))))))
+      (forward-line (-  (string-to-number (nth 1 parts)) 1)))))
 
 ;;;###autoload
 (defun fzf ()
