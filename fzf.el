@@ -476,7 +476,6 @@ The returned lambda requires extra context information:
 
 ;; Internal helper function
 (defun fzf--action-find-file-with-line (target)
-  ;; (fzf--action-find-file target)
   (let ((regexp     (nth 0 fzf--extractor-list))
         (file-group (nth 1 fzf--extractor-list))
         (line-group (nth 2 fzf--extractor-list)))
