@@ -824,8 +824,13 @@ The same note applies here."
 (defun fzf-grep-with-narrowing (&optional with-file-pattern)
   "Call `fzf-grep` with grep as the narrowing filter.
 
-See note about file & line extraction in `fzf-grep'.
-The same note applies here."
+By default the grep command searches in the files identified by
+the `fzf/grep-file-pattern' user-option unless a
+WITH-FILE_PATTERN prefix argument argument is used; in that case
+it prompts for a file pattern to use. The prompt identifies the
+tool used (grep or rg) if it recognizes the on specified in
+`fzf/grep-command'.  Remember to use the file pattern appropriate
+for the tool; grep and Ripgrep use different ones."
   (interactive "P")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (fzf-grep nil nil t file-pattern)))
@@ -834,8 +839,14 @@ The same note applies here."
 (defun fzf-grep-in-dir-with-narrowing (&optional with-file-pattern)
   "Call `fzf-grep-in-dir` with grep as the narrowing filter.
 
-See note about file & line extraction in `fzf-grep'.
-The same note applies here."
+
+By default the grep command searches in the files identified by
+the `fzf/grep-file-pattern' user-option unless a
+WITH-FILE_PATTERN prefix argument argument is used; in that case
+it prompts for a file pattern to use. The prompt identifies the
+tool used (grep or rg) if it recognizes the on specified in
+`fzf/grep-command'.  Remember to use the file pattern appropriate
+for the tool; grep and Ripgrep use different ones."
   (interactive "P")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (fzf-grep-in-dir nil t file-pattern)))
@@ -848,12 +859,12 @@ If there's no symbol at point (as identified by
 `thing-at-point'), prompt for one.
 
 By default the grep command searches in the files identified by
-the `fzf/grep-file-pattern' user-option unless WITH-FILE_PATTERN
-prefix argument is used; in that case it prompts for a file
-pattern to use.
-
-See note about file & line extraction in `fzf-grep'.  The same
-note applies here."
+the `fzf/grep-file-pattern' user-option unless a
+WITH-FILE_PATTERN prefix argument argument is used; in that case
+it prompts for a file pattern to use. The prompt identifies the
+tool used (grep or rg) if it recognizes the on specified in
+`fzf/grep-command'.  Remember to use the file pattern appropriate
+for the tool; grep and Ripgrep use different ones."
   (interactive "P")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (if (symbol-at-point)
