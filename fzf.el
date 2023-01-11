@@ -322,16 +322,30 @@ Each major mode has it's own history"
     (read-from-minibuffer prompt nil nil nil history-symbol)))
 
 ;; Internal helper function
-(defun fzf--grep-file-pattern (with-prompt)
+(defun fzf---grep-file-pattern-for (&optional file-pattern forced)
+  "Return (potentially replaced/removed) FILE-PATTERN for tool.
+
+Return nil when currently not using grep (as identified by `fzf/grep-command'
+user-option unless FORCED is non-nil."
+  (when (or forced (string-match-p "^grep " fzf/grep-command))
+    (concat  " " (or file-pattern fzf/grep-file-pattern))))
+
+;; Internal helper function
+(defun fzf--grep-file-pattern (prompt-user)
   "Return the grep file pattern to use.
 
 Prompt if WITH-PROMPT is non nil otherwise use the default
 file pattern specified by `fzf/grep-file-pattern'."
-  (if with-prompt
-      (fzf--read-for 'grep "File pattern: ")
-    (when (string-match-p "^grep " fzf/grep-command)
-      (concat  " " fzf/grep-file-pattern))))
-
+  (if prompt-user
+      (fzf--read-for 'grep
+                     (format "%sile pattern: "
+                             (cond
+                              ((string-match-p "^grep " fzf/grep-command)
+                               "grep f")
+                              ((string-match-p "^rg " fzf/grep-command)
+                               "rg f")
+                              (t "F"))))
+    (fzf---grep-file-pattern-for)))
 
 ;; Internal helper function
 (defun fzf--grep-cmd (cmd args)
@@ -462,6 +476,7 @@ The returned lambda requires extra context information:
   ;; Clean up existing fzf, allowing multiple action types.
   (fzf--close)
 
+  ;; (message "fzf--start %S %S %S" directory action custom-args)
   (unless (executable-find fzf/executable)
     (user-error "Can't find fzf/executable '%s'. Is it in your OS PATH?"
                 fzf/executable))
@@ -567,7 +582,7 @@ is used, otherwise the current working directory is used."
     (fzf--start (fzf--resolve-directory) #'fzf--action-find-file)))
 
 ;; Public utility
-(defun fzf-with-command (command action &optional directory as-filter initq)
+(defun fzf-with-command (command action &optional directory as-filter initq file-pattern)
   "Run `fzf` on the output of COMMAND.
 
 If COMMAND is nil, use the default `FZF_DEFAULT_COMMAND`.
@@ -584,6 +599,7 @@ with INITQ as the initial query, as explained here:
 https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interactive-ripgrep-launcher
 E.g. If COMMAND is grep, use grep as a narrowing filter to interactively
 reduce the search space, instead of using fzf to filter (but not narrow)."
+  ;; (message "fzf-with-command: %S %s %s %s %s %s" command action directory as-filter initq file-pattern)
   (if command
       (let
           ((process-environment (cons
@@ -595,7 +611,10 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
                              " --query " initq
                              " --bind \"change:reload:sleep 0.1; "
                              fzf/grep-command
-                             " {q} || true\"")
+                             (format " {q} %s || true\""
+                                     (or (fzf---grep-file-pattern-for
+                                          file-pattern :forced)
+                                         "")))
                    fzf/args)))
         (fzf--start directory action args))
     (fzf--start directory action)))
@@ -771,6 +790,7 @@ File name & Line extraction:
     one dash after 'fzf'!  It's not the same as the internal
     `fzf--extractor-list' variable!"
   (interactive)
+  ;; (message "fzf-grep %S %S %S %S" search directory as-filter file-pattern)
   (let* ((fzf--target-validator (fzf--use-validator
                                  (function fzf--pass-through)))
          (dir (fzf--resolve-directory directory))
@@ -785,39 +805,45 @@ File name & Line extraction:
                       file-pattern))
          (fzf--extractor-list (fzf--use-extractor
                                (list fzf--file-lnum-regexp 1 2))))
-    (fzf-with-command cmd action dir as-filter pattern)))
+    (fzf-with-command cmd action dir as-filter pattern file-pattern)))
 
 ;;;###autoload
-(defun fzf-grep-in-dir (&optional directory as-filter)
+(defun fzf-grep-in-dir (&optional directory as-filter file-pattern)
   "Call `fzf-grep` in DIRECTORY.
 
 If DIRECTORY is nil, read input interactively.
 If AS-FILTER is non-nil, use grep as the narrowing filter instead of fzf.
+If FILE-PATTERN is non-nil it is used to restrict the scope further. If nil,
+it's not specified.
 
 See note about file & line extraction in `fzf-grep'.
 The same note applies here."
   (interactive)
   (let ((dir (or directory
                  (read-directory-name "Directory: " fzf/directory-start))))
-    (fzf-grep nil dir as-filter)))
+    (fzf-grep nil dir as-filter file-pattern)))
 
 ;;;###autoload
-(defun fzf-grep-with-narrowing ()
+(defun fzf-grep-with-narrowing (&optional with-file-pattern)
   "Call `fzf-grep` with grep as the narrowing filter.
 
 See note about file & line extraction in `fzf-grep'.
 The same note applies here."
-  (interactive)
-  (fzf-grep nil nil t))
+  (interactive "P")
+  ;; (message "fzf-grep-with-narrowing")
+  (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
+    (fzf-grep nil nil t file-pattern)))
 
 ;;;###autoload
-(defun fzf-grep-in-dir-with-narrowing ()
+(defun fzf-grep-in-dir-with-narrowing (&optional with-file-pattern)
   "Call `fzf-grep-in-dir` with grep as the narrowing filter.
 
 See note about file & line extraction in `fzf-grep'.
 The same note applies here."
-  (interactive)
-  (fzf-grep-in-dir nil t))
+  (interactive "P")
+  ;; (message "fzf-grep-in-dir-with-narrowing")
+  (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
+    (fzf-grep-in-dir nil t file-pattern)))
 
 ;;;###autoload
 (defun fzf-grep-dwim (&optional with-file-pattern)
@@ -854,6 +880,7 @@ pattern to use.
 See note about file & line extraction in `fzf-grep'.  The same
 note applies here."
   (interactive "P")
+  ;; (message "fzf-grep-dwim-with-narrowing")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (if (symbol-at-point)
         (fzf-grep (thing-at-point 'symbol) nil t file-pattern)
