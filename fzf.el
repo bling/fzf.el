@@ -486,7 +486,7 @@ The returned lambda requires extra context information:
               (progn
                 (find-file fname)
                 (goto-char (point-min))
-                (forward-line (- line 1)))
+                (forward-line (1- line)))
             (error "Found non-existing file: '%s'" fname)))
       (error "Nothing matching! Is regexp ok?: '%s'" regexp))))
 
@@ -725,10 +725,15 @@ The same note applies here."
 (defun fzf-grep-dwim ()
   "Call `fzf-grep` on `symbol-at-point`.
 
-If `thing-at-point` is not a symbol, read input interactively.
+If there's no symbol at point (as identified by
+`thing-at-point'), prompt for one.
 
-See note about file & line extraction in `fzf-grep'.
-The same note applies here."
+See note about file & line extraction in `fzf-grep'.  The same
+note applies here.
+
+Current limitation: only works with search program that does not
+require a file pattern, like rg.  'grep -rnH' does not work
+here."
   (interactive)
   (if (symbol-at-point)
       (fzf-grep (thing-at-point 'symbol))
@@ -738,10 +743,15 @@ The same note applies here."
 (defun fzf-grep-dwim-with-narrowing ()
   "Call `fzf-grep` on `symbol-at-point`, with grep as the narrowing filter.
 
-If `thing-at-point` is not a symbol, read input interactively.
+If there's no symbol at point (as identified by
+`thing-at-point'), prompt for one.
 
-See note about file & line extraction in `fzf-grep'.
-The same note applies here."
+See note about file & line extraction in `fzf-grep'.  The same
+note applies here.
+
+Current limitation: only works with search program that does not
+require a file pattern, like rg.  'grep -rnH' does not work
+here."
   (interactive)
   (if (symbol-at-point)
       (fzf-grep (thing-at-point 'symbol) nil t)
