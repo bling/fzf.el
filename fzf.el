@@ -555,6 +555,23 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
         (fzf--start directory action args))
     (fzf--start directory action)))
 
+;; Internal helper function
+(defun fzf--with-command-and-args (command action
+                                           &optional fzf-append-args
+                                           directory)
+  "Execute FZF on the output of COMMAND."
+  ;; TO-DO clarify docstring
+  (if command
+      (let
+          ((process-environment (cons
+                                 (concat "FZF_DEFAULT_COMMAND=" command "")
+                                 process-environment))
+           (args (if fzf-append-args
+                     (concat fzf/args " " fzf-append-args)
+                   fzf/args)))
+        (fzf--start directory action args))
+    (fzf--start directory action)))
+
 ;; Public utility
 (defun fzf-with-entries (entries action &optional directory validator)
   "Run `fzf` with the list ENTRIES as input.
@@ -608,6 +625,9 @@ Example usage:
       (error default-directory)))
    (t default-directory)))
 
+;; ---------------------------------------------------------------------------
+;; Operations on Buffers
+
 ;;;###autoload
 (defun fzf-switch-buffer ()
   "Switch buffer selecting them with fzf."
@@ -619,6 +639,34 @@ Example usage:
       (lambda (x) (not (string-prefix-p " " x)))
       (mapcar (function buffer-name) (buffer-list)))
      (lambda (x) (set-window-buffer nil x)))))
+
+
+;; Internal helper function
+(defun fzf--action-goto-line (target)
+  "Extract line number from TARGET then jump to that line.
+
+TARGET is a line produced by 'cat -n'."
+  (let ((parts (split-string (string-trim-left target) " ")))
+    (goto-char (point-min))
+    (forward-line (1- (string-to-number (nth 0 parts))))))
+
+;;;###autoload
+(defun fzf-find-in-buffer ()
+  "Fuzzy search the current buffer visiting a file."
+  (interactive)
+  (if (buffer-file-name)
+      (progn
+        (when (buffer-modified-p)
+          (when (y-or-n-p (format "Save modified %S first? " (current-buffer)))
+            (save-buffer)))
+        (let ((fzf--target-validator (fzf--use-validator
+                                      (function fzf--pass-through))))
+          (fzf--with-command-and-args (concat "cat -n " buffer-file-name " | tac")
+		                      (function fzf--action-goto-line)
+                                      "--exact")))
+    (user-error "Buffer %S is not visiting a file!" (current-buffer))))
+
+;; ---------------------------------------------------------------------------
 
 ;;;###autoload
 (defun fzf-find-file (&optional directory)
