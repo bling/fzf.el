@@ -826,13 +826,18 @@ The same note applies here."
 If there's no symbol at point (as identified by
 `thing-at-point'), prompt for one.
 
+By default the grep command searches in the files identified by
+the `fzf/grep-file-pattern' user-option unless WITH-FILE_PATTERN
+prefix argument is used; in that case it prompts for a file
+pattern to use.
+
 See note about file & line extraction in `fzf-grep'.  The same
 note applies here."
   (interactive "P")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (if (symbol-at-point)
         (fzf-grep (thing-at-point 'symbol) nil nil file-pattern)
-      (fzf-grep nil nil file-pattern))))
+      (fzf-grep nil nil nil file-pattern))))
 
 ;;;###autoload
 (defun fzf-grep-dwim-with-narrowing (&optional with-file-pattern)
@@ -840,6 +845,11 @@ note applies here."
 
 If there's no symbol at point (as identified by
 `thing-at-point'), prompt for one.
+
+By default the grep command searches in the files identified by
+the `fzf/grep-file-pattern' user-option unless WITH-FILE_PATTERN
+prefix argument is used; in that case it prompts for a file
+pattern to use.
 
 See note about file & line extraction in `fzf-grep'.  The same
 note applies here."
