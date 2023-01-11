@@ -703,7 +703,7 @@ TARGET is a line produced by 'cat -n'."
                     " recentf-mode is not active!")))))
 
 ;;;###autoload
-(defun fzf-grep (&optional search directory as-filter)
+(defun fzf-grep (&optional search directory as-filter file-pattern)
   "FZF search filtered on a grep search result.
 
 - SEARCH is the end of the grep command line;  typically holding the regexp
@@ -732,7 +732,10 @@ File name & Line extraction:
          (action #'fzf--action-find-file-with-line)
          (pattern (or search
                       (read-from-minibuffer (concat fzf/grep-command ": "))))
-         (cmd (concat fzf/grep-command " " pattern))
+         (cmd (concat fzf/grep-command
+                      " "
+                      pattern
+                      file-pattern))
          (fzf--extractor-list (fzf--use-extractor
                                (list fzf--file-lnum-regexp 1 2))))
     (fzf-with-command cmd action dir as-filter pattern)))
@@ -783,9 +786,11 @@ Current limitation: only works with search program that does not
 require a file pattern, like rg.  'grep -rnH' does not work
 here."
   (interactive)
-  (if (symbol-at-point)
-      (fzf-grep (thing-at-point 'symbol))
-    (fzf-grep)))
+  (let ((file-pattern (when (string-match-p "^grep " fzf/grep-command)
+                        " *")))
+    (if (symbol-at-point)
+        (fzf-grep (thing-at-point 'symbol) nil nil file-pattern)
+      (fzf-grep nil nil file-pattern))))
 
 ;;;###autoload
 (defun fzf-grep-dwim-with-narrowing ()
@@ -801,9 +806,11 @@ Current limitation: only works with search program that does not
 require a file pattern, like rg.  'grep -rnH' does not work
 here."
   (interactive)
-  (if (symbol-at-point)
-      (fzf-grep (thing-at-point 'symbol) nil t)
-    (fzf-grep nil nil t)))
+  (let ((file-pattern (when (string-match-p "^grep " fzf/grep-command)
+                        " *")))
+    (if (symbol-at-point)
+        (fzf-grep (thing-at-point 'symbol) nil t file-pattern)
+      (fzf-grep nil nil t file-pattern))))
 
 ;; ---------------------------------------------------------------------------
 ;; VCS Support
