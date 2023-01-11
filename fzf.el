@@ -178,18 +178,37 @@ See `fzf--action-find-file-with-line' for details on how output is parsed."
   :group 'fzf)
 
 (defcustom fzf/git-grep-args "-i --line-number %s"
-  "Arguments to pass into git grep. %s is the search term placeholder"
+  "Arguments to pass into git grep. %s is the search term placeholder."
   :type 'string
   :group 'fzf)
 
 (defcustom fzf/hg-grep-args "-i --line-number %s"
-  "Arguments to pass into hg grep. %s is the search term placeholder"
+  "Arguments to pass into hg grep. %s is the search term placeholder."
   :type 'string
+  :group 'fzf)
+
+(defcustom fzf/grep-file-pattern "*"
+  "Default file pattern used for fzf-grep operations.
+
+Used only when `fzf/grep-command' is using grep."
+  ;; TO-DO make this more flexible allowing the user to specify a regexp
+  ;; that search into `fzf/grep-command' to determine if a default file
+  ;; pattern should be used, or some other mechanism.
+  :type 'string
+  :group 'fzf)
+
+(defcustom fzf/prompt-history-per-major-mode t
+  "If non-nil fzf maintain prompt history for each major mode.
+
+If nil, fzf prompts have the same history in all modes."
+  :type 'boolean
+  :safe #'booleanp
   :group 'fzf)
 
 (defcustom fzf/position-bottom t
   "Set the position of the fzf window. Set to nil to position on top."
   :type 'boolean
+  :safe #'booleanp
   :group 'fzf)
 
 (defconst fzf/buffer-name "*fzf*"
@@ -289,14 +308,40 @@ including file names with embedded colons.
 See `fzf--file-lnum-regexp' and `fzf--file-rnum-lnum-regexp' as examples.")
 
 ;; ---------------------------------------------------------------------------
+;; Internal helper function
+(defun fzf--read-for (operation prompt)
+  "Prompt in minibuffer for OPERATION with PROMPT and history. Return entry.
+
+Each major mode has it's own history"
+  (let ((history-symbol (intern (format
+                                 "fzf--%s-prompt-history-for-%s"
+                                 operation
+                                 (if fzf/prompt-history-per-major-mode
+                                     major-mode
+                                   'all)))))
+    (read-from-minibuffer prompt nil nil nil history-symbol)))
+
+;; Internal helper function
+(defun fzf--grep-file-pattern (with-prompt)
+  "Return the grep file pattern to use.
+
+Prompt if WITH-PROMPT is non nil otherwise use the default
+file pattern specified by `fzf/grep-file-pattern'."
+  (if with-prompt
+      (fzf--read-for 'grep "File pattern: ")
+    (when (string-match-p "^grep " fzf/grep-command)
+      (concat  " " fzf/grep-file-pattern))))
+
 
 ;; Internal helper function
 (defun fzf--grep-cmd (cmd args)
   (format (concat cmd " " args)
           (shell-quote-argument
            (if (region-active-p)
-               (buffer-substring-no-properties (region-beginning) (region-end))
-             (read-from-minibuffer (concat cmd ": "))))))
+               (buffer-substring-no-properties (region-beginning)
+                                               (region-end))
+             (fzf--read-for (concat "-" cmd) ; prevent name clash with symbols
+                            (concat cmd ": "))))))
 
 ;; Internal helper function
 (defun fzf--exit-code-from-event (msg)
@@ -731,10 +776,12 @@ File name & Line extraction:
          (dir (fzf--resolve-directory directory))
          (action #'fzf--action-find-file-with-line)
          (pattern (or search
-                      (read-from-minibuffer (concat fzf/grep-command ": "))))
+                      (fzf--read-for 'grep-cmd
+                                     (concat fzf/grep-command ": "))))
          (cmd (concat fzf/grep-command
                       " "
                       pattern
+                      " "
                       file-pattern))
          (fzf--extractor-list (fzf--use-extractor
                                (list fzf--file-lnum-regexp 1 2))))
@@ -773,41 +820,31 @@ The same note applies here."
   (fzf-grep-in-dir nil t))
 
 ;;;###autoload
-(defun fzf-grep-dwim ()
+(defun fzf-grep-dwim (&optional with-file-pattern)
   "Call `fzf-grep` on `symbol-at-point`.
 
 If there's no symbol at point (as identified by
 `thing-at-point'), prompt for one.
 
 See note about file & line extraction in `fzf-grep'.  The same
-note applies here.
-
-Current limitation: only works with search program that does not
-require a file pattern, like rg.  'grep -rnH' does not work
-here."
-  (interactive)
-  (let ((file-pattern (when (string-match-p "^grep " fzf/grep-command)
-                        " *")))
+note applies here."
+  (interactive "P")
+  (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (if (symbol-at-point)
         (fzf-grep (thing-at-point 'symbol) nil nil file-pattern)
       (fzf-grep nil nil file-pattern))))
 
 ;;;###autoload
-(defun fzf-grep-dwim-with-narrowing ()
+(defun fzf-grep-dwim-with-narrowing (&optional with-file-pattern)
   "Call `fzf-grep` on `symbol-at-point`, with grep as the narrowing filter.
 
 If there's no symbol at point (as identified by
 `thing-at-point'), prompt for one.
 
 See note about file & line extraction in `fzf-grep'.  The same
-note applies here.
-
-Current limitation: only works with search program that does not
-require a file pattern, like rg.  'grep -rnH' does not work
-here."
-  (interactive)
-  (let ((file-pattern (when (string-match-p "^grep " fzf/grep-command)
-                        " *")))
+note applies here."
+  (interactive "P")
+  (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (if (symbol-at-point)
         (fzf-grep (thing-at-point 'symbol) nil t file-pattern)
       (fzf-grep nil nil t file-pattern))))
