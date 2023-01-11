@@ -476,7 +476,6 @@ The returned lambda requires extra context information:
   ;; Clean up existing fzf, allowing multiple action types.
   (fzf--close)
 
-  ;; (message "fzf--start %S %S %S" directory action custom-args)
   (unless (executable-find fzf/executable)
     (user-error "Can't find fzf/executable '%s'. Is it in your OS PATH?"
                 fzf/executable))
@@ -599,7 +598,6 @@ with INITQ as the initial query, as explained here:
 https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interactive-ripgrep-launcher
 E.g. If COMMAND is grep, use grep as a narrowing filter to interactively
 reduce the search space, instead of using fzf to filter (but not narrow)."
-  ;; (message "fzf-with-command: %S %s %s %s %s %s" command action directory as-filter initq file-pattern)
   (if command
       (let
           ((process-environment (cons
@@ -790,7 +788,6 @@ File name & Line extraction:
     one dash after 'fzf'!  It's not the same as the internal
     `fzf--extractor-list' variable!"
   (interactive)
-  ;; (message "fzf-grep %S %S %S %S" search directory as-filter file-pattern)
   (let* ((fzf--target-validator (fzf--use-validator
                                  (function fzf--pass-through)))
          (dir (fzf--resolve-directory directory))
@@ -830,7 +827,6 @@ The same note applies here."
 See note about file & line extraction in `fzf-grep'.
 The same note applies here."
   (interactive "P")
-  ;; (message "fzf-grep-with-narrowing")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (fzf-grep nil nil t file-pattern)))
 
@@ -841,7 +837,6 @@ The same note applies here."
 See note about file & line extraction in `fzf-grep'.
 The same note applies here."
   (interactive "P")
-  ;; (message "fzf-grep-in-dir-with-narrowing")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (fzf-grep-in-dir nil t file-pattern)))
 
@@ -880,7 +875,6 @@ pattern to use.
 See note about file & line extraction in `fzf-grep'.  The same
 note applies here."
   (interactive "P")
-  ;; (message "fzf-grep-dwim-with-narrowing")
   (let ((file-pattern (fzf--grep-file-pattern with-file-pattern)))
     (if (symbol-at-point)
         (fzf-grep (thing-at-point 'symbol) nil t file-pattern)
