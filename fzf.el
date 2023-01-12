@@ -348,12 +348,22 @@ file pattern specified by `fzf/grep-file-pattern'."
     (fzf---grep-file-pattern-for)))
 
 ;; Internal helper function
+(defun fzf--text-only-for (region-begin region-end)
+  "Filter away display buffer text attributes and ANSI color escape sequences.
+
+The ANSI color sequences are filtered when Emacs runs in termcap mode."
+  (unless (display-graphic-p)
+    (require 'ansi-color)
+    (ansi-color-filter-region region-begin region-end))
+  (buffer-substring-no-properties region-begin region-end))
+
+;; Internal helper function
 (defun fzf--grep-cmd (cmd args)
   (format (concat cmd " " args)
           (shell-quote-argument
            (if (region-active-p)
-               (buffer-substring-no-properties (region-beginning)
-                                               (region-end))
+               (fzf--text-only-for (region-beginning)
+                                   (region-end))
              (fzf--read-for (concat "-" cmd) ; prevent name clash with symbols
                             (concat cmd ": "))))))
 
@@ -419,7 +429,6 @@ error:
     ;; return potentially adjusted file name
     target))
 
-
 ;; Internal helper function
 (defun fzf--after-term-handle-exit (directory action target-validator extractor-list)
   "Create and return lambda that handles the result of fzf.
@@ -439,7 +448,7 @@ The returned lambda requires extra context information:
   the file name and line number from the grep-like program output, when used."
   (lambda (process-name msg)
     (let* ((exit-code (fzf--exit-code-from-event msg))
-           (text (buffer-substring-no-properties (point-min) (point-max)))
+           (text (fzf--text-only-for (point-min) (point-max)))
            (lines (split-string text "\n" t "\s*>\s+"))
            (target (string-trim
                     (concat
