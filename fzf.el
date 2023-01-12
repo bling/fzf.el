@@ -137,9 +137,10 @@ write the absolute path of the executable to use."
 (defcustom fzf/args-for-preview "--preview 'cat {}'"
   "Extra arguments to pass to fzf to preview selected file.
 
-The extra arguments identified by this user-option are appended to the fzf
-command line used by the `fzf' and `fzf-directory' Emacs commands when those
-are invoked with prefix arguments, for example by typing 'C-u M-x fzf'.
+The extra arguments identified by this user-option are appended
+to the fzf command line used by the `fzf', `fzf-directory',
+`fzf-projectile` and `fzf-recentf' Emacs commands when those are
+invoked with prefix arguments, for example by typing 'C-u M-x fzf'.
 
 Several choices are available:
 
@@ -812,10 +813,19 @@ TARGET is a line produced by 'cat -n'."
     (fzf-find-file dir)))
 
 ;;;###autoload
-(defun fzf-recentf ()
-  "Start a fzf session with the list of recently opened files."
-  (interactive)
-  (let ((fzf--target-validator (fzf--use-validator
+(defun fzf-recentf (&optional with-preview)
+  "Start a fzf session with the list of recently opened files.
+
+With optional prefix WITH-PREVIEW the currently selected file
+content or attribute is shown using the preview command
+identified by the `fzf/args-for-preview' user-option.  By default
+that shows the file content with cat, but that can be customized
+to use other mechanisms."
+  (interactive "P")
+  (let ((fzf/args (if with-preview
+                      (concat fzf/args " " fzf/args-for-preview)
+                    fzf/args))
+        (fzf--target-validator (fzf--use-validator
                                 (function fzf--pass-through))))
     (if (bound-and-true-p recentf-list)
         (fzf-with-entries recentf-list #'fzf--action-find-file)
@@ -1071,13 +1081,16 @@ File name & Line extraction:
 
 ;; ---------------------------------------------------------------------------
 ;;;###autoload
-(defun fzf-projectile ()
+(defun fzf-projectile (&optional with-preview)
   "Starts an fzf session at the root of the current projectile project."
-  (interactive)
+  (interactive "P")
   (require 'projectile)
   (if (fboundp 'projectile-project-root)
-      (let ((fzf--target-validator (fzf--use-validator
-                                (function fzf--validate-filename))))
+      (let ((fzf/args (if with-preview
+                          (concat fzf/args " " fzf/args-for-preview)
+                        fzf/args))
+            (fzf--target-validator (fzf--use-validator
+                                    (function fzf--validate-filename))))
         (fzf--start (or (projectile-project-root) default-directory)
                     #'fzf--action-find-file))
     (error "projectile-project-root is not bound")))
