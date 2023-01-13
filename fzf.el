@@ -492,7 +492,9 @@ The returned lambda requires extra context information:
       ;; Kill the fzf buffer and restore the previous window configuration.
       (kill-buffer fzf/buffer-name)
       (jump-to-register fzf--window-register)
-      (message (format "FZF exited with code %s" exit-code))
+      (if (string= exit-code "0")
+          (message "FZF selection: %s" target)
+        (user-error "FZF error: %s" exit-code))
       ;; Extract file/line from fzf only if fzf was successful.
       (when (string= "0" exit-code)
         ;; Re-Establish the fzf--extractor-list required by original caller
