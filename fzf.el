@@ -134,6 +134,39 @@ write the absolute path of the executable to use."
   :type 'string
   :group 'fzf)
 
+(defcustom fzf/args-for-preview "--preview 'cat {}'"
+  "Extra arguments to pass to fzf to preview selected file.
+
+The extra arguments identified by this user-option are appended
+to the fzf command line used by the `fzf', `fzf-directory',
+`fzf-projectile` and `fzf-recentf' Emacs commands when those are
+invoked with prefix arguments, for example by typing 'C-u M-x fzf'.
+
+Several choices are available:
+
+- 1: Show file's content with \"--preview 'cat {}'\" by default.
+- 2: Show information about the file with \"--preview 'file {}'\" by default.
+- 3: Show ls output for the file.
+- 4: Show word count output on the file.
+- 5: any other argument.
+
+Notes:
+
+- You could add extra arguments here that would do more than only
+  adding preview capability to fzf.  These will be applied to `fzf' and
+  `fzf-directory' when you invoke them with a prefix argument (eg. C-u).
+
+- You can change the string of any of the available choices,
+  allowing you to quickly select from one or another using Emacs
+  customization mechanism.n"
+  :type '(choice
+          (string :tag "Show content of file" "--preview 'cat {}'")
+          (string :tag "Show type of file"    "--preview 'file {}'")
+          (string :tag "Show ls on file"      "--preview 'ls -l {}'")
+          (string :tag "Show wc on file"      "--preview 'wc {}'")
+          (string :tag "other" ""))
+  :group 'fzf)
+
 (defcustom fzf/grep-command "grep -nrH"
   "Recursive grep-like command line used for `fzf-grep-*` functions.
 
@@ -579,15 +612,25 @@ the file name validation.  See `fzf--validate-filename' and
 ;; ---------------------------------------------------------------------------
 
 ;;;###autoload
-(defun fzf ()
+(defun fzf (&optional with-preview)
   "Starts a fzf session in the appropriate directory.
 
-The selected directory is projectile's root directory if projectile
-is used, otherwise the current working directory is used."
-  (interactive)
-  (let ((fzf--target-validator (fzf--use-validator
-                                (function fzf--validate-filename))))
-    (fzf--start (fzf--resolve-directory) #'fzf--action-find-file)))
+By default this process the current working directory unless this is inside a
+Projectile project in which case the root directory of the Projectile project
+is used.
+
+With optional prefix WITH-PREVIEW the currently selected file
+content or attribute is shown using the preview command
+identified by the `fzf/args-for-preview' user-option.  By default
+that shows the file content with cat, but that can be customized
+to use other mechanisms."
+  (interactive "P")
+  (let ((fzf/args (if with-preview
+                      (concat fzf/args " " fzf/args-for-preview)
+                    fzf/args)))
+    (let ((fzf--target-validator (fzf--use-validator
+                                  (function fzf--validate-filename))))
+      (fzf--start (fzf--resolve-directory) #'fzf--action-find-file))))
 
 ;; Public utility
 (defun fzf-with-command (command action &optional directory as-filter initq file-pattern)
@@ -664,10 +707,19 @@ no validation."
       (user-error "No input entries specified"))))
 
 ;;;###autoload
-(defun fzf-directory ()
-  "Starts a fzf session at the specified directory."
-  (interactive)
-  (let ((fzf--target-validator (fzf--use-validator
+(defun fzf-directory (&optional with-preview)
+  "Starts a fzf session at the specified directory.
+
+With optional prefix WITH-PREVIEW the currently selected file
+content or attribute is shown using the preview command
+identified by the `fzf/args-for-preview' user-option.  By default
+that shows the file content with cat, but that can be customized
+to use other mechanisms."
+  (interactive "P")
+  (let ((fzf/args (if with-preview
+                      (concat fzf/args " " fzf/args-for-preview)
+                    fzf/args))
+        (fzf--target-validator (fzf--use-validator
                                 (function fzf--validate-filename)))
         (d (read-directory-name "Directory: " fzf/directory-start)))
     (fzf--start d
@@ -761,10 +813,19 @@ TARGET is a line produced by 'cat -n'."
     (fzf-find-file dir)))
 
 ;;;###autoload
-(defun fzf-recentf ()
-  "Start a fzf session with the list of recently opened files."
-  (interactive)
-  (let ((fzf--target-validator (fzf--use-validator
+(defun fzf-recentf (&optional with-preview)
+  "Start a fzf session with the list of recently opened files.
+
+With optional prefix WITH-PREVIEW the currently selected file
+content or attribute is shown using the preview command
+identified by the `fzf/args-for-preview' user-option.  By default
+that shows the file content with cat, but that can be customized
+to use other mechanisms."
+  (interactive "P")
+  (let ((fzf/args (if with-preview
+                      (concat fzf/args " " fzf/args-for-preview)
+                    fzf/args))
+        (fzf--target-validator (fzf--use-validator
                                 (function fzf--pass-through))))
     (if (bound-and-true-p recentf-list)
         (fzf-with-entries recentf-list #'fzf--action-find-file)
@@ -1020,13 +1081,16 @@ File name & Line extraction:
 
 ;; ---------------------------------------------------------------------------
 ;;;###autoload
-(defun fzf-projectile ()
+(defun fzf-projectile (&optional with-preview)
   "Starts an fzf session at the root of the current projectile project."
-  (interactive)
+  (interactive "P")
   (require 'projectile)
   (if (fboundp 'projectile-project-root)
-      (let ((fzf--target-validator (fzf--use-validator
-                                (function fzf--validate-filename))))
+      (let ((fzf/args (if with-preview
+                          (concat fzf/args " " fzf/args-for-preview)
+                        fzf/args))
+            (fzf--target-validator (fzf--use-validator
+                                    (function fzf--validate-filename))))
         (fzf--start (or (projectile-project-root) default-directory)
                     #'fzf--action-find-file))
     (error "projectile-project-root is not bound")))
