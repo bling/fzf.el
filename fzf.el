@@ -416,15 +416,15 @@ The ANSI color sequences are filtered when Emacs runs in termcap mode."
 ;; Internal helper function
 (defun fzf--close()
   "Cleanup hooks and process."
-  ; Remove hook first so it doesn't trigger when process is killed
+  ;; Remove hook first so it doesn't trigger when process is killed
   (when fzf--hook (advice-remove 'term-handle-exit fzf--hook))
   (setq fzf--hook nil)
+  ;; Kill process so user isn't prompted
+  (let ((process-name (file-name-nondirectory fzf/executable)))
+    (when (get-process process-name)
+      (delete-process (get-process process-name))))
 
-  ; Kill process so user isn't prompted
-  (when (get-process fzf/executable)
-    (delete-process (get-process fzf/executable)))
-
-  ; Kill buffer and restore window
+  ;; Kill buffer and restore window
   (when (get-buffer fzf/buffer-name)
     (kill-buffer fzf/buffer-name)
     (jump-to-register fzf--window-register)))
@@ -541,7 +541,8 @@ The returned lambda requires extra context information:
       (setq default-directory (or directory "")))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
-    (make-term fzf/executable "sh" nil "-c" sh-cmd)
+    (make-term (file-name-nondirectory fzf/executable)
+               "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
 
     ;; Disable minor modes that interfere with rendering while fzf is running
