@@ -494,7 +494,7 @@ The returned lambda requires extra context information:
       (jump-to-register fzf--window-register)
       (if (string= exit-code "0")
           (message "FZF selection: %s" target)
-        (user-error "FZF error: %s" exit-code))
+        (message "FZF error: %s" exit-code))
       ;; Extract file/line from fzf only if fzf was successful.
       (when (string= "0" exit-code)
         ;; Re-Establish the fzf--extractor-list required by original caller
