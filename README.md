@@ -97,6 +97,48 @@ Or more exciting:
     d)))
 ```
 
+## Interacting with the FZF buffer
+
+When you run one of the above commands, you will see an "FZF" buffer. For example, when
+using `M-x fzf`, you'll see a buffer that looks like:
+
+```
+ file1.ext
+ file2.ext
+ file3.ext
+ ....
+ > SELECTED-FILE            # RET (Enter) will open this file
+ 1580404/1580404            # Fuzzy find on my 1.6 million files
+ > PATTERN                  # You type a fuzzy pattern to find
+```
+The *PATTERN* you type will narrow the selected items. PATTERN is used to do
+[approximate string matching](https://en.wikipedia.org/wiki/Approximate_string_matching).
+The PATTERN syntax is described in the [fzf man page](https://www.mankier.com/1/fzf) and is not a regular expression. Below is a
+short summary where I used `/regular expressions/` to illustrate the matching behavior. *The closest
+match is listed first*.
+
+
+| PATTERN     | MATCH RESULT                                                                                                                                   |
+|:------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `foo`       | Match file paths containing `/foo/`, `/f.*oo/`, `/f.*o.*o/`, etc.                                                                              |
+| `foo bar`   | Use spaces to specify multiple pattern terms, `foo bar` matches paths containing both terms, `/foo.*bar/`,  `/bar.*foo/`, `/f.*oo.*bar/`, etc. |
+| `'foo`      | File paths containing exactly the string foo (`/foo/`)                                                                                         |
+| `!foo`      | Negation, file paths that do not contain exact match, foo, in their name                                                                       |
+| `^foo/bar`  | An anchored match, a term prefixed with ^ means match files                                                                                    |
+| `.cpp$`     | An anchored match, a term postfixed with $ means match files ending with .cpp                                                                  |
+| `.c$ | .h$` | OR operator, match paths ending in .c or .h                                                                                                    |
+
+For example, the pattern "`^apps/special 'foo !bar .c$ | .h$`" will match file paths starting with "apps/special"
+that contain the string "foo", not the string "bar", and end in ".c" or ".h".
+
+**Keys**
+
+The FZF buffer which you use to fuzzy find is based on the underlying code for `M-x ansi-term`. Most
+keys you type are sent to the fzf process. We've set the terminal escape key to `C-x`. Use `C-x C-h`
+to see the key bindings in the FZF buffer. For example, you can maximize the FZF buffer window using
+`C-x 1` which closes the other windows in your Emacs frame thus giving you bigger FZF buffer window
+for fuzzy finding.
+
 # license
 
 GPL3

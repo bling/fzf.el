@@ -7,7 +7,7 @@
 ;; Description: A front-end for fzf
 ;; Created: 2015-09-18
 ;; Version: 0.0.2
-;; Package-Requires: ((emacs "24.4"))
+;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: fzf fuzzy search
 ;;
 ;; This file is not part of GNU Emacs.
@@ -107,6 +107,7 @@
 
 ;;; Code:
 
+(require 'seq)
 (require 'subr-x)
 
 ;; ---------------------------------------------------------------------------
@@ -251,6 +252,9 @@ If nil, fzf prompts have the same history in all modes."
   "The path of the default start directory for fzf-directory."
   :type 'string
   :group 'fzf)
+
+(defvar fzf-show-debug-messages nil
+  "Set to enable FZF debugging messages")
 
 ;; ---------------------------------------------------------------------------
 ;; Public variables
@@ -492,9 +496,20 @@ The returned lambda requires extra context information:
       ;; Kill the fzf buffer and restore the previous window configuration.
       (kill-buffer fzf/buffer-name)
       (jump-to-register fzf--window-register)
-      (if (string= exit-code "0")
-          (message "FZF selection: %s" target)
-        (message "FZF error: %s" exit-code))
+      (cond
+       ((string= exit-code "0")
+        (when fzf-show-debug-messages (message "FZF selection: %s" target)))
+       ((string= exit-code "1")
+        ;; When there's no selection fzf exit code is 1. See 'exitNoMatch' constant in
+        ;; https://github.com/junegunn/fzf/blob/master/src/constants.go
+        (when fzf-show-debug-messages (message "FZF no match")))
+       ((string= exit-code "130")
+        ;; C-g will interrupt fzf child process resulting in exit code of 130. See
+        ;; 'exitInterrupt' constant in https://github.com/junegunn/fzf/blob/master/src/constants.go
+        (when fzf-show-debug-messages (message "FZF canceled via C-g")))
+       (t
+        ;; Still want to remove the advice below so don't call error/user-error.
+        (message "FZF error: %s" exit-code)))
       ;; Extract file/line from fzf only if fzf was successful.
       (when (string= "0" exit-code)
         ;; Re-Establish the fzf--extractor-list required by original caller
@@ -511,6 +526,8 @@ The returned lambda requires extra context information:
 
 (defvar term-exec-hook)               ; prevent byte-compiler warning
 (defvar term-suppress-hard-newline)   ; prevent byte-compiler warning
+
+(declare-function term-set-escape-char "term.el")
 
 ;; Internal helper function
 (defun fzf--start (directory action &optional custom-args)
@@ -541,8 +558,13 @@ The returned lambda requires extra context information:
       (setq default-directory (or directory "")))
     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
-    (make-term (file-name-nondirectory fzf/executable)
-               "sh" nil "-c" sh-cmd)
+    (let ((process-name (file-name-nondirectory fzf/executable)))
+      (make-term process-name
+                 "sh" nil "-c" sh-cmd)
+      ;; Don't ask if okay to kill the fzf process:
+      (set-process-query-on-exit-flag (get-process process-name) nil))
+    ;; Enable C-x 1, etc. (without this one needs to use C-c 1, etc.)
+    (term-set-escape-char ?\C-x)
     (switch-to-buffer buf)
 
     ;; Disable minor modes that interfere with rendering while fzf is running
@@ -555,13 +577,15 @@ The returned lambda requires extra context information:
     (when (bound-and-true-p visual-line-mode)
       (visual-line-mode 0))
     (when (bound-and-true-p display-line-numbers-mode)
-      (display-line-numbers-mode 0))
+      (when (fboundp 'display-line-numbers-mode)
+        (display-line-numbers-mode 0)))
     ;; disable various settings known to cause artifacts, see #1 for more details
     (setq-local scroll-margin 0)
     (setq-local scroll-conservatively 0)
     (setq-local term-suppress-hard-newline t)
     (setq-local show-trailing-whitespace nil)
-    (setq-local display-line-numbers nil)
+    (when (boundp 'display-line-numbers) ;; Not present in Emacs 25 and earlier
+      (setq-local display-line-numbers nil))
     (setq-local truncate-lines t)
     (face-remap-add-relative 'mode-line '(:box nil))
 
