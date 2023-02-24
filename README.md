@@ -118,15 +118,15 @@ short summary where I used `/regular expressions/` to illustrate the matching be
 match is listed first*.
 
 
-| PATTERN     | MATCH RESULT                                                                                                                                   |
-|:------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
-| `foo`       | Match file paths containing `/foo/`, `/f.*oo/`, `/f.*o.*o/`, etc.                                                                              |
-| `foo bar`   | Use spaces to specify multiple pattern terms, `foo bar` matches paths containing both terms, `/foo.*bar/`,  `/bar.*foo/`, `/f.*oo.*bar/`, etc. |
-| `'foo`      | File paths containing exactly the string foo (`/foo/`)                                                                                         |
-| `!foo`      | Negation, file paths that do not contain exact match, foo, in their name                                                                       |
-| `^foo/bar`  | An anchored match, a term prefixed with ^ means match files                                                                                    |
-| `.cpp$`     | An anchored match, a term postfixed with $ means match files ending with .cpp                                                                  |
-| `.c$ | .h$` | OR operator, match paths ending in .c or .h                                                                                                    |
+| PATTERN      | MATCH RESULT                                                                                                                                   |
+|:-------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `foo`        | Match file paths containing `/foo/`, `/f.*oo/`, `/f.*o.*o/`, etc.                                                                              |
+| `foo bar`    | Use spaces to specify multiple pattern terms, `foo bar` matches paths containing both terms, `/foo.*bar/`,  `/bar.*foo/`, `/f.*oo.*bar/`, etc. |
+| `'foo`       | File paths containing exactly the string foo (`/foo/`)                                                                                         |
+| `!foo`       | Negation, file paths that do not contain exact match, foo, in their name                                                                       |
+| `^foo/bar`   | An anchored match, a term prefixed with ^ means match files starting with foo/bar                                                              |
+| `.cpp$`      | An anchored match, a term postfixed with $ means match files ending with .cpp                                                                  |
+| `.c$ \| .h$` | OR operator, match paths ending in .c or .h                                                                                                    |
 
 For example, the pattern "`^apps/special 'foo !bar .c$ | .h$`" will match file paths starting with "apps/special"
 that contain the string "foo", not the string "bar", and end in ".c" or ".h".
