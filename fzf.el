@@ -130,7 +130,57 @@ write the absolute path of the executable to use."
   :type 'string
   :group 'fzf)
 
-(defcustom fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
+;; fzf/args:
+;;   term.el which fzf uses requires 16-bit colors or you can use black and white
+;;   which is specified via fzf --color=bw.
+;;
+;;   To specify fzf colors use
+;;     --color=16[,COLOR:ANSI_CODE,....]
+;;
+;;   COLOR                     Description
+;;   ------------------------- --------------------------------------------------
+;;   fg / bg / hl              Item (foreground / background / highlight)
+;;   fg+ / bg+ / hl+           Current item (foreground / background / highlight)
+;;   preview-fg / preview-bg   Preview window text and background
+;;   hl / hl+                  Highlighted substrings (normal / current)
+;;   gutter                    Background of the gutter on the left
+;;   pointer                   Pointer to the current line (>)
+;;   marker                    Multi-select marker (>)
+;;   border                    Border around the window (--border and --preview)
+;;   header                    Header (--header or --header-lines)
+;;   info                      Info line (match counters)
+;;   spinner                   Streaming input indicator
+;;   query                     Query string
+;;   disabled                  Query string when search is disabled
+;;   prompt                    Prompt before query (> )
+;;   pointer                   Pointer to the current line (>)
+;;
+;;   ANSI_CODE (in Emacs 27 term.el, we are restricted to these colors):
+;;     0  black
+;;     1  red
+;;     2  green
+;;     3  yellow
+;;     4  blue
+;;     5  magenta
+;;     6  cyan
+;;     7  white
+;;
+;;   A color code of -1, denotes terminal default foreground/background color
+;;
+;;   See:
+;;     1) https://github.com/junegunn/fzf/wiki/Color-schemes
+;;     2) https://minsw.github.io/fzf-color-picker/
+;;     4) Alternate Solarized Light/Dark Theme (256 colors)
+;;        https://github.com/junegunn/fzf/wiki/Color-schemes#alternate-solarized-lightdark-theme
+;;     3) https://www.ditig.com/256-colors-cheat-sheet
+;;        The 256 color codes which help in converting to 16-bit codes
+
+(defcustom fzf/args (concat
+                     "-x "
+                     (if (eq (frame-parameter nil 'background-mode) 'light)
+                         "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:1,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 "
+                       "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:6,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 ")
+                     "--print-query --margin=1,0 --no-hscroll")
   "Additional arguments to pass into fzf."
   :type 'string
   :group 'fzf)
