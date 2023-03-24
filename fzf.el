@@ -177,9 +177,18 @@ write the absolute path of the executable to use."
 
 (defcustom fzf/args (concat
                      "-x "
-                     (if (eq (frame-parameter nil 'background-mode) 'light)
-                         "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:1,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 "
-                       "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:6,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 ")
+                     (cond
+                      ((display-graphic-p)
+                       (cond
+                        ((eq (frame-parameter nil 'background-mode) 'light)
+                         ;; Windowing system, light background
+                         "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:1,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 ")
+                        (t
+                         ;; Windowing system, dark background
+                         "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:6,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 ")))
+                      (t
+                       ;; In terminal, can't tell if in a light or dark background
+                       "--color=16,fg:-1,fg+:0,bg:-1,bg+:-1,hl:1,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 "))
                      "--print-query --margin=1,0 --no-hscroll")
   "Additional arguments to pass into fzf."
   :type 'string
