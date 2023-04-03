@@ -18,7 +18,7 @@ available customizations and their default values.
   :bind
     ;; Don't forget to set keybinds!
   :config
-  (setq fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
+  (setq fzf/args "-x --color=bw --print-query --margin=1,0 --no-hscroll"
         fzf/executable "fzf"
         fzf/git-grep-args "-i --line-number %s"
         ;; command used for `fzf-grep-*` functions
@@ -113,8 +113,8 @@ using `M-x fzf`, you'll see a buffer that looks like:
 ```
 The *PATTERN* you type will narrow the selected items. PATTERN is used to do
 [approximate string matching](https://en.wikipedia.org/wiki/Approximate_string_matching).
-The PATTERN syntax is described in the [fzf man page](https://www.mankier.com/1/fzf) and is not a regular expression. Below is a
-short summary where I used `/regular expressions/` to illustrate the matching behavior. *The closest
+The PATTERN syntax is not a regular expression. In the examples below, we used
+used `/regular expressions/` to illustrate the matching behavior. *The closest
 match is listed first*.
 
 
@@ -138,6 +138,12 @@ keys you type are sent to the fzf process. We've set the terminal escape key to 
 to see the key bindings in the FZF buffer. For example, you can maximize the FZF buffer window using
 `C-x 1` which closes the other windows in your Emacs frame thus giving you bigger FZF buffer window
 for fuzzy finding.
+
+**Colors**
+
+The FZF buffer picks colors based on the way Emacs was invoked (terminal, light background window
+frame, or dark background window frame).  See the `fzf/args` defcustom to modify the colors or
+use black and white.
 
 # license
 
