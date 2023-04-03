@@ -130,67 +130,79 @@ write the absolute path of the executable to use."
   :type 'string
   :group 'fzf)
 
-;; fzf/args:
-;;   term.el which fzf uses requires 16-bit colors or you can use black and white
-;;   which is specified via fzf --color=bw.
-;;
-;;   To specify fzf colors use
-;;     --color=16[,COLOR:ANSI_CODE,....]
-;;
-;;   COLOR                     Description
-;;   ------------------------- --------------------------------------------------
-;;   fg / bg / hl              Item (foreground / background / highlight)
-;;   fg+ / bg+ / hl+           Current item (foreground / background / highlight)
-;;   preview-fg / preview-bg   Preview window text and background
-;;   hl / hl+                  Highlighted substrings (normal / current)
-;;   gutter                    Background of the gutter on the left
-;;   pointer                   Pointer to the current line (>)
-;;   marker                    Multi-select marker (>)
-;;   border                    Border around the window (--border and --preview)
-;;   header                    Header (--header or --header-lines)
-;;   info                      Info line (match counters)
-;;   spinner                   Streaming input indicator
-;;   query                     Query string
-;;   disabled                  Query string when search is disabled
-;;   prompt                    Prompt before query (> )
-;;   pointer                   Pointer to the current line (>)
-;;
-;;   ANSI_CODE (in Emacs 27 term.el, we are restricted to these colors):
-;;     0  black
-;;     1  red
-;;     2  green
-;;     3  yellow
-;;     4  blue
-;;     5  magenta
-;;     6  cyan
-;;     7  white
-;;
-;;   A color code of -1, denotes terminal default foreground/background color
-;;
-;;   See:
-;;     1) https://github.com/junegunn/fzf/wiki/Color-schemes
-;;     2) https://minsw.github.io/fzf-color-picker/
-;;     4) Alternate Solarized Light/Dark Theme (256 colors)
-;;        https://github.com/junegunn/fzf/wiki/Color-schemes#alternate-solarized-lightdark-theme
-;;     3) https://www.ditig.com/256-colors-cheat-sheet
-;;        The 256 color codes which help in converting to 16-bit codes
+(defcustom fzf/args
+  "-x --print-query --margin=1,0 --no-hscroll"
+  "Options used when in invoking fzf
 
-(defcustom fzf/args (concat
-                     "-x "
-                     (cond
-                      ((display-graphic-p)
-                       (cond
-                        ((eq (frame-parameter nil 'background-mode) 'light)
-                         ;; Windowing system, light background
-                         "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:1,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 ")
-                        (t
-                         ;; Windowing system, dark background
-                         "--color=16,fg:-1,fg+:0,bg:-1,bg+:3,hl:6,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 ")))
-                      (t
-                       ;; In terminal, can't tell if in a light or dark background
-                       "--color=16,fg:-1,fg+:0,bg:-1,bg+:-1,hl:1,hl+:1,info:5,gutter:-1,prompt:5,pointer:4,marker:4,spinner:6 "))
-                     "--print-query --margin=1,0 --no-hscroll")
-  "Additional arguments to pass into fzf."
+If fzf/args does NOT contain --color, then one of
+  `fzf/args-color-background-light'
+  `fzf/args-color-background-dark'
+  `fzf/args-color-in-terminal'
+will be used dependening on how Emacs was invoked and the current
+Emacs `customize-theme'.
+
+For --color=VALUE, you can use a subset of 16-bit colors or you
+can use black and white via --color=bw. To specify fzf colors use
+  --color=16,COLOR_SPEC1,COLOR_SPEC2,...
+where each COLOR_SPEC is of form
+  COLOR_NAME[:STYLE1[:STYLE2]...]ANSI_CODE
+STYLE can be reverse, underline, bold, or a combination. For example,
+hl+:reverse:underline:4 is blue reverse underline for current item highlight.
+
+COLOR_NAME
+  fg / bg / hl     Item (foreground / background / highlight)
+  pointer          Pointer to the current item which RET selects (>)
+  fg+ / bg+ / hl+  Current item
+  prompt           Prompt before query pattern (>)
+  query            Query pattern foreground
+  spinner          Streaming input indicator (spinning '@')
+  info             Info line (match counters, e.g. 200/300)
+  gutter           Background of the left margin
+
+ANSI_CODE(-1 == default) or a code. fzf leverages the term.el
+package and thus we are restricted to these codes:
+  0  black
+  1  red
+  2  green
+  3  yellow
+  4  blue
+  5  magenta
+  6  cyan
+  7  white
+
+FZF BUFFER
+   path/to/file1.ext    # 'fg/bg/hl' applied to 1st item
+   path/to/file2.ext    # 'fg/bg/hl' applied to 2nd item
+ > path/to/file3.ext    # 'pointer' and 'fg+/bg+/hl+' applied to current item
+   path/to/file4.ext    # 'fg/bg/hl' applied 4th item
+   ....
+ @ 1580404/1580404      # 'spinner' and 'info' applied here
+ > PATTERN              # 'prompt' and 'query' applied here
+
+See: https://github.com/junegunn/fzf/wiki/Color-schemes
+     https://minsw.github.io/fzf-color-picker"
+  :type 'string
+  :group 'fzf)
+
+(defcustom fzf/args-color-background-light
+  "--color=16,fg:-1,hl:bold:1,bg:-1,pointer:4,fg+:0,hl+:1,bg+:3,spinner:6,info:5,prompt:5,query:-1,gutter:-1"
+  "fzf color option used when running Emacs in a light background window frame.
+See `fzf/args' for --color help"
+  :type 'string
+  :group 'fzf)
+
+(defcustom fzf/args-color-background-dark
+  "--color=16,fg:-1,bg:-1,hl:bold:6,pointer:reverse:6,fg+:7,bg+:0,hl+:underline:6,spinner:6,info:bold:3,prompt:5,query:-1,gutter:-1"
+  "fzf color option used when running Emacs in a dark background window frame.
+See `fzf/args' for --color help"
+  :type 'string
+  :group 'fzf)
+
+(defcustom fzf/args-color-in-terminal
+  "--color=16,fg:-1,bg:-1,hl:reverse:-1,pointer:reverse:1,fg+:-1,bg+:-1,hl+:reverse:-1,spinner:6,info:-1,prompt:5,query:-1,gutter:-1"
+  "fzf color option used when running Emacs is in a terminal.
+When running in a terminal, we can't tell if Emacs has a light or dark background.
+See `fzf/args' for --color help"
   :type 'string
   :group 'fzf)
 
@@ -588,6 +600,22 @@ The returned lambda requires extra context information:
 
 (declare-function term-set-escape-char "term.el")
 
+(defun fzf--args-with-color ()
+  "Return fzf options with --color switch based on `fzf/args' value"
+  (if (string-match "--color=" fzf/args)
+      fzf/args
+    ;; Else add --color=VALUE based on if Emacs is running in a terminal or frame and the current
+    ;; background type (light vs dark)
+    (concat 
+     (if (not (display-graphic-p))
+         fzf/args-color-in-terminal
+       (cond
+        ((eq (frame-parameter nil 'background-mode) 'light)
+         fzf/args-color-background-light)
+        (t
+         fzf/args-color-background-dark)))
+     " " fzf/args)))
+
 ;; Internal helper function
 (defun fzf--start (directory action &optional custom-args)
   "Launch `fzf/executable' in terminal, extract and act on selected item."
@@ -611,7 +639,7 @@ The returned lambda requires extra context information:
          (buf (get-buffer-create fzf/buffer-name))
          (min-height (min fzf/window-height (/ (window-height) 2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
-         (args (or custom-args fzf/args))
+         (args (or custom-args (fzf--args-with-color)))
          (sh-cmd (concat fzf/executable " " args)))
     (with-current-buffer buf
       (setq default-directory (or directory "")))
@@ -742,7 +770,7 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
                                  (concat "FZF_DEFAULT_COMMAND=" command "")
                                  process-environment))
            (args (if as-filter
-                     (concat fzf/args
+                     (concat (fzf--args-with-color)
                              " --disabled"
                              " --query " initq
                              " --bind \"change:reload:sleep 0.1; "
@@ -751,7 +779,7 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
                                      (or (fzf---grep-file-pattern-for
                                           file-pattern :forced)
                                          "")))
-                   fzf/args)))
+                   (fzf--args-with-color))))
         (fzf--start directory action args))
     (fzf--start directory action)))
 
@@ -767,8 +795,8 @@ reduce the search space, instead of using fzf to filter (but not narrow)."
                                  (concat "FZF_DEFAULT_COMMAND=" command "")
                                  process-environment))
            (args (if fzf-append-args
-                     (concat fzf/args " " fzf-append-args)
-                   fzf/args)))
+                     (concat (fzf--args-with-color) " " fzf-append-args)
+                   (fzf--args-with-color))))
         (fzf--start directory action args))
     (fzf--start directory action)))
 
