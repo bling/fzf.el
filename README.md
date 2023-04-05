@@ -2,7 +2,7 @@
 
 An Emacs front-end for [fzf][1].
 
-![demo](https://cloud.githubusercontent.com/assets/306502/12380684/ca0a6648-bd46-11e5-9091-841b282874e4.gif)
+![demo](screencast/fzf_in_emacs.gif)
 
 # installation
 
