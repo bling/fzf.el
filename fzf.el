@@ -747,7 +747,9 @@ to use other mechanisms."
       (fzf--start (fzf--resolve-directory) #'fzf--action-find-file))))
 
 ;; Public utility
-(defun fzf-with-command (command action &optional directory as-filter initq file-pattern)
+(defun fzf-with-command (command action
+                                 &optional directory as-filter initq
+                                 file-pattern validator)
   "Run `fzf` on the output of COMMAND.
 
 If COMMAND is nil, use the default `FZF_DEFAULT_COMMAND`.
@@ -763,25 +765,33 @@ If AS-FILTER is non-nil, use command as the narrowing filter instead of fzf,
 with INITQ as the initial query, as explained here:
 https://github.com/junegunn/fzf/blob/master/ADVANCED.md#using-fzf-as-interactive-ripgrep-launcher
 E.g. If COMMAND is grep, use grep as a narrowing filter to interactively
-reduce the search space, instead of using fzf to filter (but not narrow)."
-  (if command
-      (let
-          ((process-environment (cons
-                                 (concat "FZF_DEFAULT_COMMAND=" command "")
-                                 process-environment))
-           (args (if as-filter
-                     (concat (fzf--args-with-color)
-                             " --disabled"
-                             " --query " initq
-                             " --bind \"change:reload:sleep 0.1; "
-                             fzf/grep-command
-                             (format " {q} %s || true\""
-                                     (or (fzf---grep-file-pattern-for
-                                          file-pattern :forced)
-                                         "")))
-                   (fzf--args-with-color))))
-        (fzf--start directory action args))
-    (fzf--start directory action)))
+reduce the search space, instead of using fzf to filter (but not narrow).
+
+Use the FILE-PATTERN to specify a grep file pattern different than what is
+specified by the fzf/grep-file-pattern  user-option.
+
+The default validator is `fzf--pass-through', specify another one by passing
+it into the VALIDATOR argument."
+  (let ((fzf--target-validator (or validator
+                                   (function fzf--pass-through))))
+    (if command
+        (let
+            ((process-environment (cons
+                                   (concat "FZF_DEFAULT_COMMAND=" command "")
+                                   process-environment))
+             (args (if as-filter
+                       (concat (fzf--args-with-color)
+                               " --disabled"
+                               " --query " initq
+                               " --bind \"change:reload:sleep 0.1; "
+                               fzf/grep-command
+                               (format " {q} %s || true\""
+                                       (or (fzf---grep-file-pattern-for
+                                            file-pattern :forced)
+                                           "")))
+                     (fzf--args-with-color))))
+          (fzf--start directory action args))
+      (fzf--start directory action))))
 
 ;; Internal helper function
 (defun fzf--with-command-and-args (command action
