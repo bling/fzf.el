@@ -145,6 +145,13 @@ The FZF buffer picks colors based on the way Emacs was invoked (terminal, light 
 frame, or dark background window frame).  See the `fzf/args` defcustom to modify the colors or
 use black and white.
 
+## Windows Support
+
+On UNIX, fzf integration leverages the term.el package, which in turn leverages pty's and
+Windows doesn't have a pseudo terminal concept. On Windows, processes communicate via pipes, so
+the path that fzf.el took on UNIX will not work on Windows. Therefore, on Windows we open an
+external cmd.exe to run fzf there and use temporary files to get the result back to Emacs.
+
 # license
 
 GPL3

@@ -602,11 +602,11 @@ The returned lambda requires extra context information:
 
 (defun fzf--args-with-color ()
   "Return fzf options with --color switch based on `fzf/args' value"
-  (if (string-match "--color=" fzf/args)
+  (if (string-match "--color" fzf/args) ;; have --color VALUE or --color=VALUE?
       fzf/args
     ;; Else add --color=VALUE based on if Emacs is running in a terminal or frame and the current
     ;; background type (light vs dark)
-    (concat 
+    (concat
      (if (not (display-graphic-p))
          fzf/args-color-in-terminal
        (cond
@@ -616,73 +616,135 @@ The returned lambda requires extra context information:
          fzf/args-color-background-dark)))
      " " fzf/args)))
 
+(defvar fzf--windows-result-files nil)
+(defvar fzf--windows-directory-and-action nil)
+(defvar fzf--windows-tmp-entries-file nil)
+
+(defun fzf--windows-cmd-sentinel (proc msg)
+  "Called when `fzf--windows-cmd' completes and runs `fzf--windows-action'"
+  (ignore proc)
+  (let ((result-file (car fzf--windows-result-files))
+        (bat-file (cdr fzf--windows-result-files))
+        target)
+
+    (when (and (file-exists-p result-file)
+               (string-match-p "finished" msg))
+      (with-temp-buffer
+        (insert-file-contents-literally result-file)
+        (setq target (replace-regexp-in-string "[\n\r]+$" ""
+                                               (buffer-substring (point-min) (point-max))))))
+
+    (cl-loop for tmp-file in (list result-file bat-file fzf--windows-tmp-entries-file) do
+             (when (and tmp-file (file-exists-p tmp-file))
+               (delete-file tmp-file)))
+
+    ;; If target is empty then there was no selection or some other erro
+    (when (and target (not (string= target "")))
+      (let ((directory (car fzf--windows-directory-and-action))
+            (action (cdr fzf--windows-directory-and-action)))
+        (setq default-directory (or directory default-directory))
+        (funcall action target)))))
+
+(defun fzf--start-windows (directory action)
+  "Launch `fzf/executable' in an external Windows cmd.exe,
+extract and act on selected item"
+  ;; On UNIX, fzf integration leverages the term.el package, which in turn leverages pty's and
+  ;; Windows doesn't have a pseudo terminal concept. On Windows, processes communicate via pipes, so
+  ;; the path that fzf.el took on UNIX will not work on Windows. Therefore, on Windows we open an
+  ;; external cmd.exe to run fzf there and use temporary files to get the result back to Emacs.
+  (with-temp-buffer
+    (let ((result-file (make-temp-file "fzf_" nil ".txt"))
+          (bat-file (replace-regexp-in-string "/" "\\\\" (make-temp-file "fzf_" nil ".bat"))))
+      (setq fzf--windows-result-files (cons result-file bat-file)
+            fzf--windows-directory-and-action (cons directory action)
+            default-directory (or directory default-directory))
+      (with-temp-file bat-file
+        ;; Use a *.bat file to invoke fzf for cmd.exe window title and argument quoting
+        (insert (concat
+                 "@echo off\n"
+                 "title FZF for Emacs\n"
+                 (shell-quote-argument fzf/executable) " "
+                 (when directory (concat " --header=\"[" directory "]\" "))
+                 ">\"" result-file "\"\n")))
+      (let ((proc (start-process
+                   "cmd" nil
+                   "cmd.exe"
+                   "/c" "start/wait" "cmd.exe" "/c" bat-file)))
+        (set-process-sentinel proc #'fzf--windows-cmd-sentinel)
+        (set-process-query-on-exit-flag proc nil)))))
+
 ;; Internal helper function
 (defun fzf--start (directory action &optional custom-args)
-  "Launch `fzf/executable' in terminal, extract and act on selected item."
-  (require 'term)
+  "Launch `fzf/executable' in terminal, extract and act on selected item.
+On Windows, this launches a separate cmd.exe for fzf.
+No CUSTOM-ARGS for Windows."
+  (if (eq system-type 'windows-nt)
+      (fzf--start-windows directory action)
+    ;; else UNIX
+    (require 'term)
 
-  ;; Clean up existing fzf, allowing multiple action types.
-  (fzf--close)
+    ;; Clean up existing fzf, allowing multiple action types.
+    (fzf--close)
 
-  (unless (executable-find fzf/executable)
-    (user-error "Can't find fzf/executable '%s'. Is it in your OS PATH?"
-                fzf/executable))
+    (unless (executable-find fzf/executable)
+      (user-error "Can't find fzf/executable '%s'. Is it in your OS PATH?"
+                  fzf/executable))
 
-  ;; launch process in an inferior terminal mapped in current window
-  (window-configuration-to-register fzf--window-register)
-  (advice-add 'term-handle-exit
-              :after (fzf--after-term-handle-exit directory
-                                                  action
-                                                  fzf--target-validator
-                                                  fzf--extractor-list))
-  (let* ((term-exec-hook nil)
-         (buf (get-buffer-create fzf/buffer-name))
-         (min-height (min fzf/window-height (/ (window-height) 2)))
-         (window-height (if fzf/position-bottom (- min-height) min-height))
-         (args (or custom-args (fzf--args-with-color)))
-         (sh-cmd (concat fzf/executable " " args)))
-    (with-current-buffer buf
-      (setq default-directory (or directory "")))
-    (split-window-vertically window-height)
-    (when fzf/position-bottom (other-window 1))
-    (let ((process-name (file-name-nondirectory fzf/executable)))
-      (make-term process-name
-                 "sh" nil "-c" sh-cmd)
-      ;; Don't ask if okay to kill the fzf process:
-      (set-process-query-on-exit-flag (get-process process-name) nil))
-    ;; Enable C-x 1, etc. (without this one needs to use C-c 1, etc.)
-    (term-set-escape-char ?\C-x)
-    (switch-to-buffer buf)
+    ;; launch process in an inferior terminal mapped in current window
+    (window-configuration-to-register fzf--window-register)
+    (advice-add 'term-handle-exit
+                :after (fzf--after-term-handle-exit directory
+                                                    action
+                                                    fzf--target-validator
+                                                    fzf--extractor-list))
+    (let* ((term-exec-hook nil)
+           (buf (get-buffer-create fzf/buffer-name))
+           (min-height (min fzf/window-height (/ (window-height) 2)))
+           (window-height (if fzf/position-bottom (- min-height) min-height))
+           (args (or custom-args (fzf--args-with-color)))
+           (sh-cmd (concat fzf/executable " " args)))
+      (with-current-buffer buf
+        (setq default-directory (or directory "")))
+      (split-window-vertically window-height)
+      (when fzf/position-bottom (other-window 1))
+      (let ((process-name (file-name-nondirectory fzf/executable)))
+        (make-term process-name
+                   "sh" nil "-c" sh-cmd)
+        ;; Don't ask if okay to kill the fzf process:
+        (set-process-query-on-exit-flag (get-process process-name) nil))
+      ;; Enable C-x 1, etc. (without this one needs to use C-c 1, etc.)
+      (term-set-escape-char ?\C-x)
+      (switch-to-buffer buf)
 
-    ;; Disable minor modes that interfere with rendering while fzf is running
-    ;; TODO: provide ability to modify the set of actions in the user-option
-    ;;       to allow compatibility with more minor modes instead of using
-    ;;       this hard coded set.
-    (and (fboundp 'turn-off-evil-mode) (turn-off-evil-mode))
-    (when (bound-and-true-p linum-mode)
-      (linum-mode 0))
-    (when (bound-and-true-p visual-line-mode)
-      (visual-line-mode 0))
-    (when (bound-and-true-p display-line-numbers-mode)
-      (when (fboundp 'display-line-numbers-mode)
-        (display-line-numbers-mode 0)))
-    ;; disable various settings known to cause artifacts, see #1 for more details
-    (setq-local scroll-margin 0)
-    (setq-local scroll-conservatively 0)
-    (setq-local term-suppress-hard-newline t)
-    (setq-local show-trailing-whitespace nil)
-    (when (boundp 'display-line-numbers) ;; Not present in Emacs 25 and earlier
-      (setq-local display-line-numbers nil))
-    (setq-local truncate-lines t)
-    (face-remap-add-relative 'mode-line '(:box nil))
+      ;; Disable minor modes that interfere with rendering while fzf is running
+      ;; TODO: provide ability to modify the set of actions in the user-option
+      ;;       to allow compatibility with more minor modes instead of using
+      ;;       this hard coded set.
+      (and (fboundp 'turn-off-evil-mode) (turn-off-evil-mode))
+      (when (bound-and-true-p linum-mode)
+        (linum-mode 0))
+      (when (bound-and-true-p visual-line-mode)
+        (visual-line-mode 0))
+      (when (bound-and-true-p display-line-numbers-mode)
+        (when (fboundp 'display-line-numbers-mode)
+          (display-line-numbers-mode 0)))
+      ;; disable various settings known to cause artifacts, see #1 for more details
+      (setq-local scroll-margin 0)
+      (setq-local scroll-conservatively 0)
+      (setq-local term-suppress-hard-newline t)
+      (setq-local show-trailing-whitespace nil)
+      (when (boundp 'display-line-numbers) ;; Not present in Emacs 25 and earlier
+        (setq-local display-line-numbers nil))
+      (setq-local truncate-lines t)
+      (face-remap-add-relative 'mode-line '(:box nil))
 
-    (and (fboundp 'term-char-mode) (term-char-mode))
-    ;; Remember the used terminal exit handler to allow its later removal.
-    (setq fzf--hook (fzf--after-term-handle-exit directory
-                                                 action
-                                                 fzf--target-validator
-                                                 fzf--extractor-list)
-          mode-line-format (format "   FZF  %s" (or directory "")))))
+      (and (fboundp 'term-char-mode) (term-char-mode))
+      ;; Remember the used terminal exit handler to allow its later removal.
+      (setq fzf--hook (fzf--after-term-handle-exit directory
+                                                   action
+                                                   fzf--target-validator
+                                                   fzf--extractor-list)
+            mode-line-format (format "   FZF  %s" (or directory ""))))))
 
 ;; Internal helper function
 (defun fzf--action-find-file (target)
@@ -821,14 +883,24 @@ If VALIDATOR is specified it must be a function with the same signature as
 `fzf--validate-filename' and it will be used as a item validator. If VALIDATOR
 is nil, the default, then the `fzf--pass-through' validator is used (doing
 no validation."
-  (let ((fzf--target-validator (or validator
-                                   (function fzf--pass-through))))
-    (if entries
-        (fzf-with-command
-         (concat "echo \""
-                 (mapconcat (lambda (x) x) entries "\n") "\"")
-         action directory)
-      (user-error "No input entries specified"))))
+  (when (not entries)
+    (user-error "No input entries specified"))
+  (if (eq system-type 'windows-nt)
+      (progn
+        (setq fzf--windows-tmp-entries-file (replace-regexp-in-string
+                                             "/" "\\\\"
+                                             (make-temp-file "fzf_entries_" nil ".txt")))
+       (with-temp-file fzf--windows-tmp-entries-file
+          (insert (mapconcat (lambda (x) x) entries "\n")))
+       (fzf-with-command (concat "cmd /c type \"" fzf--windows-tmp-entries-file "\"")
+                         action directory))
+    ;; Else UNIX
+    (let ((fzf--target-validator (or validator
+                                     (function fzf--pass-through))))
+      (fzf-with-command
+       (concat "echo \""
+               (mapconcat (lambda (x) x) entries "\n") "\"")
+       action directory))))
 
 ;;;###autoload
 (defun fzf-directory (&optional with-preview)
