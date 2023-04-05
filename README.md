@@ -118,26 +118,26 @@ used `/regular expressions/` to illustrate the matching behavior. *The closest
 match is listed first*.
 
 
-| PATTERN      | MATCH RESULT                                                                                                                                   |
-|:-------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
-| `foo`        | Match file paths containing `/foo/`, `/f.*oo/`, `/f.*o.*o/`, etc.                                                                              |
-| `foo bar`    | Use spaces to specify multiple pattern terms, `foo bar` matches paths containing both terms, `/foo.*bar/`,  `/bar.*foo/`, `/f.*oo.*bar/`, etc. |
-| `'foo`       | File paths containing exactly the string foo (`/foo/`)                                                                                         |
-| `!foo`       | Negation, file paths that do not contain exact match, foo, in their name                                                                       |
-| `^foo/bar`   | An anchored match, a term prefixed with ^ means match files starting with foo/bar                                                              |
-| `.cpp$`      | An anchored match, a term postfixed with $ means match files ending with .cpp                                                                  |
-| `.c$ \| .h$` | OR operator, match paths ending in .c or .h                                                                                                    |
+| PATTERN&nbsp;&nbsp;&nbsp; | MATCH RESULT                                                                                                                                   |
+|:--------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `foo`                     | Match file paths containing `/foo/`, `/f.*oo/`, `/f.*o.*o/`, etc.                                                                              |
+| `foo bar`                 | Use spaces to specify multiple pattern terms, `foo bar` matches paths containing both terms, `/foo.*bar/`,  `/bar.*foo/`, `/f.*oo.*bar/`, etc. |
+| `'foo`                    | File paths containing exactly the string foo (`/foo/`)                                                                                         |
+| `!foo`                    | Negation, file paths that do not contain exact match, foo, in their name                                                                       |
+| `^foo/bar`                | An anchored match, a term prefixed with ^ means match files starting with foo/bar                                                              |
+| `.cpp$`                   | An anchored match, a term postfixed with $ means match files ending with .cpp                                                                  |
+| `.c$ \| .h$`              | OR operator, match paths ending in .c or .h                                                                                                    |
 
 For example, the pattern "`^apps/special 'foo !bar .c$ | .h$`" will match file paths starting with "apps/special"
 that contain the string "foo", not the string "bar", and end in ".c" or ".h".
 
 **Keys**
 
-The FZF buffer which you use to fuzzy find is based on the underlying code for `M-x ansi-term`. Most
-keys you type are sent to the fzf process. We've set the terminal escape key to `C-x`. Use `C-x C-h`
-to see the key bindings in the FZF buffer. For example, you can maximize the FZF buffer window using
-`C-x 1` which closes the other windows in your Emacs frame thus giving you bigger FZF buffer window
-for fuzzy finding.
+The FZF buffer, which you use to fuzzy find, is based on the underlying code for `M-x
+ansi-term`. Most keys you type are sent to the fzf process. We've set the terminal escape key to
+`C-x`. Use `C-x C-h` to see the Emacs command key bindings in the FZF buffer. For example, you can
+maximize the FZF buffer window using `C-x 1` which closes the other windows in your Emacs frame, thus
+giving you bigger FZF buffer window for fuzzy finding.
 
 **Colors**
 
