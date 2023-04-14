@@ -580,7 +580,7 @@ The returned lambda requires extra context information:
         (when fzf-show-debug-messages (message "FZF canceled via C-g")))
        (t
         ;; Still want to remove the advice below so don't call error/user-error.
-        (message "FZF error: %s" exit-code)))
+        (message "FZF error: %s, %s" exit-code, text)))
       ;; Extract file/line from fzf only if fzf was successful.
       (when (string= "0" exit-code)
         ;; Re-Establish the fzf--extractor-list required by original caller
