@@ -145,6 +145,46 @@ The FZF buffer picks colors based on the way Emacs was invoked (terminal, light 
 frame, or dark background window frame).  See the `fzf/args` defcustom to modify the colors or
 use black and white.
 
+**Colors in a terminal, emacs -nw**
+
+When running in a terminal, emacs -nw, and you have an Emacs theme (see `M-x customize-themes`),
+then the corresponding light or dark background color fzf setup will be used. Colors in Emacs work
+best when running in a terminal with 24-bit truecolor support. For example, on recent Linux with
+xterm-direct and Emacs 27 or later, this should give you truecolor in a terminal:
+
+```bash
+env TERM=xterm-direct emacs -nw
+```
+
+If you are running in a 256 color terminal, for example `env TERM=xterm-256color emacs -nw`, you may
+wish to use a less dark yellow. This code is robust to either a 256 or truecolor terminal:
+
+```lisp
+;; Fixup term.el colors when running in an old 256-bit color terminal (emacs -mw).  For example, in
+;; Emacs 27, term-color-yellow is "yellow3" which doesn't exist in 256-colors, so use "brightyellow"
+;; which does exist. Following is a no-op when running in a truecolor terminal.
+(eval-after-load 'term
+  '(when (not (display-graphic-p)) ;; In terminal, emacs -nw?
+     (let ((basic-color-alist
+            ;; (NAME . NEW_COLOR) pair. If color string of face, term-color-NAME, does not exist and
+            ;; and NEW_COLOR exists, update the face to use that.
+            '(("yellow" . "brightyellow") ;; term-color-yellow == yellow3, map to brightyellow?
+              ))
+           (tty-colors (tty-color-alist)))
+       (cl-loop for color-pair in basic-color-alist do
+                (let* ((ansi-color (car color-pair))
+                       (color-256 (cdr color-pair))
+                       (color-face (intern (concat "term-color-" ansi-color)))
+                       (term-color-string (face-attribute color-face :background)))
+                  ;; If the term-color-string doesn't exist, we are likely running with 256 colors,
+                  ;; in this case, use an color-256 if it exists.
+                  (when (and (not (assoc term-color-string tty-colors))
+                             (assoc color-256 tty-colors))
+                    (set-face-attribute color-face nil
+                                        :background color-256
+                                        :foreground color-256)))))))
+```
+
 ## Windows Support
 
 On UNIX, fzf integration leverages the term.el package, which in turn leverages pty's and
