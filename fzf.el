@@ -138,8 +138,8 @@ If fzf/args does NOT contain --color, then one of
   `fzf/args-color-background-light'
   `fzf/args-color-background-dark'
   `fzf/args-color-in-terminal'
-will be used dependening on how Emacs was invoked and the current
-Emacs `customize-theme'.
+will be used depending on how Emacs was invoked and the current
+Emacs theme, see `customize-themes'.
 
 For --color=VALUE, you can use a subset of 16-bit colors or you
 can use black and white via --color=bw. To specify fzf colors use
@@ -200,8 +200,14 @@ See `fzf/args' for --color help"
 
 (defcustom fzf/args-color-in-terminal
   "--color=16,fg:-1,bg:-1,hl:reverse:-1,pointer:reverse:1,fg+:-1,bg+:-1,hl+:reverse:-1,spinner:6,info:-1,prompt:5,query:-1,gutter:-1"
-  "fzf color option used when running Emacs is in a terminal.
-When running in a terminal, we can't tell if Emacs has a light or dark background.
+  "fzf color option potentially used when running Emacs is in a terminal.
+
+This will be used when running emacs in a terminal and Emacs
+cannot tell if the background is light or dark. When running
+emacs -nw in a terminal, if you do NOT have a theme set, (see
+`customize-themes'), then Emacs cannot tell if the terminal has a
+light or dark background.
+
 See `fzf/args' for --color help"
   :type 'string
   :group 'fzf)
@@ -606,15 +612,20 @@ The returned lambda requires extra context information:
       fzf/args
     ;; Else add --color=VALUE based on if Emacs is running in a terminal or frame and the current
     ;; background type (light vs dark)
-    (concat
-     (if (not (display-graphic-p))
-         fzf/args-color-in-terminal
+    (let ((bg-mode (frame-parameter nil 'background-mode)))
+      (concat
        (cond
-        ((eq (frame-parameter nil 'background-mode) 'light)
+        ((eq bg-mode 'light)
          fzf/args-color-background-light)
+        ((eq bg-mode 'dark)
+         fzf/args-color-background-dark)
+        ((eq bg-mode nil)
+         ;; When running emacs -nw in a terminal (not (display-graphic-p)), and there is no
+         ;; `customize-themes' active.
+         fzf/args-color-in-terminal)
         (t
-         fzf/args-color-background-dark)))
-     " " fzf/args)))
+         (error "unexpected bg-mode %S" bg-mode)))
+       " " fzf/args))))
 
 (defvar fzf--windows-result-files nil)
 (defvar fzf--windows-directory-and-action nil)
@@ -638,7 +649,7 @@ The returned lambda requires extra context information:
              (when (and tmp-file (file-exists-p tmp-file))
                (delete-file tmp-file)))
 
-    ;; If target is empty then there was no selection or some other erro
+    ;; If target is empty then there was no selection or some other error
     (when (and target (not (string= target "")))
       (let ((directory (car fzf--windows-directory-and-action))
             (action (cdr fzf--windows-directory-and-action)))
@@ -1092,7 +1103,7 @@ The same note applies here."
 
 By default the grep command searches in the files identified by
 the `fzf/grep-file-pattern' user-option unless a
-WITH-FILE_PATTERN prefix argument argument is used; in that case
+WITH-FILE_PATTERN prefix argument is used; in that case
 it prompts for a file pattern to use. The prompt identifies the
 tool used (grep or rg) if it recognizes the on specified in
 `fzf/grep-command'.  Remember to use the file pattern appropriate
@@ -1108,7 +1119,7 @@ for the tool; grep and Ripgrep use different ones."
 
 By default the grep command searches in the files identified by
 the `fzf/grep-file-pattern' user-option unless a
-WITH-FILE_PATTERN prefix argument argument is used; in that case
+WITH-FILE_PATTERN prefix argument is used; in that case
 it prompts for a file pattern to use. The prompt identifies the
 tool used (grep or rg) if it recognizes the on specified in
 `fzf/grep-command'.  Remember to use the file pattern appropriate
@@ -1126,7 +1137,7 @@ If there's no symbol at point (as identified by
 
 By default the grep command searches in the files identified by
 the `fzf/grep-file-pattern' user-option unless a
-WITH-FILE_PATTERN prefix argument argument is used; in that case
+WITH-FILE_PATTERN prefix argument is used; in that case
 it prompts for a file pattern to use. The prompt identifies the
 tool used (grep or rg) if it recognizes the on specified in
 `fzf/grep-command'.  Remember to use the file pattern appropriate
