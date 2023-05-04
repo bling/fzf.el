@@ -220,6 +220,14 @@ See `fzf--action-find-file-with-line' for details on how output is parsed."
   :type 'string
   :group 'fzf)
 
+(defcustom fzf/git-files-args ""
+  "Arguments for `git ls-files`.
+
+Example alternate args are `--exclude-standard -co` to
+ignore .gitignore'd files but to also list untracked files."
+  :type 'string
+  :group 'fzf)
+
 (defcustom fzf/grep-file-pattern "*"
   "Default file pattern used for fzf-grep operations.
 
@@ -987,13 +995,13 @@ note applies here."
         (fzf--start path (function fzf--action-find-file))
       (user-error "Not inside a %s repository" vcs-name))))
 
-(defun fzf--vcs-command (vcs-name root-filename command)
+(defun fzf--vcs-command (vcs-name root-filename command &optional args)
   "Run FZF specific COMMAND in the VCS-NAME directory holding ROOT-FILENAME."
   (let ((fzf--target-validator (fzf--use-validator
                                 (function fzf--validate-filename)))
         (path (locate-dominating-file default-directory root-filename)))
     (if path
-        (fzf-with-command command (function fzf--action-find-file) path)
+        (fzf-with-command (concat command " " args)(function fzf--action-find-file) path)
       (user-error "Not inside a %s repository" vcs-name))))
 
 ;;;###autoload
@@ -1010,7 +1018,7 @@ Search *all* files in the repository directory tree."
 
 Only search files that have been committed."
   (interactive)
-  (fzf--vcs-command "Git" ".git" "git ls-files"))
+  (fzf--vcs-command "Git" ".git" "git ls-files" fzf/git-files-args))
 
 ;;;###autoload
 (defun fzf-git-grep ()
