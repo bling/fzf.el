@@ -586,7 +586,7 @@ The returned lambda requires extra context information:
         (when fzf-show-debug-messages (message "FZF canceled via C-g")))
        (t
         ;; Still want to remove the advice below so don't call error/user-error.
-        (message "FZF error: %s, %s" exit-code, text)))
+        (message "FZF error: %s, %s" exit-code text)))
       ;; Extract file/line from fzf only if fzf was successful.
       (when (string= "0" exit-code)
         ;; Re-Establish the fzf--extractor-list required by original caller
@@ -638,22 +638,31 @@ The returned lambda requires extra context information:
         (bat-file (cdr fzf--windows-result-files))
         target)
 
+    (when fzf-show-debug-messages
+      (message "FZF fzf--windows-cmd-sentinel proc, %S, state change: %s" proc msg))
+
     (when (and (file-exists-p result-file)
                (string-match-p "finished" msg))
       (with-temp-buffer
         (insert-file-contents-literally result-file)
+        (when fzf-show-debug-messages
+          (message "FZF fzf--windows-cmd-sentinel result-file, %s, contents:\n%s" result-file (buffer-string)))
         (setq target (replace-regexp-in-string "[\n\r]+$" ""
-                                               (buffer-substring (point-min) (point-max))))))
+                                               (buffer-string)))))
 
     (cl-loop for tmp-file in (list result-file bat-file fzf--windows-tmp-entries-file) do
              (when (and tmp-file (file-exists-p tmp-file))
-               (delete-file tmp-file)))
+               (if fzf-show-debug-messages
+                   (message "FZF fzf--windows-cmd-sentinel sparing: %s" tmp-file)
+                 (delete-file tmp-file))))
 
     ;; If target is empty then there was no selection or some other error
     (when (and target (not (string= target "")))
       (let ((directory (car fzf--windows-directory-and-action))
             (action (cdr fzf--windows-directory-and-action)))
         (setq default-directory (or directory default-directory))
+        (when fzf-show-debug-messages
+          (message "FZF fzf--windows-cmd-sentinel calling (%S %S)" action target))
         (funcall action target)))))
 
 (defun fzf--start-windows (directory action)
@@ -677,10 +686,11 @@ extract and act on selected item"
                  (shell-quote-argument fzf/executable) " "
                  (when directory (concat " --header=\"[" directory "]\" "))
                  ">\"" result-file "\"\n")))
-      (let ((proc (start-process
-                   "cmd" nil
-                   "cmd.exe"
-                   "/c" "start/wait" "cmd.exe" "/c" bat-file)))
+      (let ((cmd-args (list "/c" "start/wait" "cmd.exe" "/c" bat-file))
+            proc)
+        (when fzf-show-debug-messages
+          (message "%s" (concat "FZF fzf--start-windows running: cmd.exe " (mapconcat #'identity cmd-args " "))))
+        (setq proc (apply #'start-process "cmd" nil "cmd.exe" cmd-args))
         (set-process-sentinel proc #'fzf--windows-cmd-sentinel)
         (set-process-query-on-exit-flag proc nil)))))
 
@@ -901,10 +911,12 @@ no validation."
         (setq fzf--windows-tmp-entries-file (replace-regexp-in-string
                                              "/" "\\\\"
                                              (make-temp-file "fzf_entries_" nil ".txt")))
-       (with-temp-file fzf--windows-tmp-entries-file
+        (with-temp-file fzf--windows-tmp-entries-file
           (insert (mapconcat (lambda (x) x) entries "\n")))
-       (fzf-with-command (concat "cmd /c type \"" fzf--windows-tmp-entries-file "\"")
-                         action directory))
+        (let ((cmd (concat "cmd /c type \"" fzf--windows-tmp-entries-file "\"")))
+          (when fzf-show-debug-messages
+            (message "FZF fzf-with-entries: %s" cmd))
+          (fzf-with-command cmd action directory)))
     ;; Else UNIX
     (let ((fzf--target-validator (or validator
                                      (function fzf--pass-through))))

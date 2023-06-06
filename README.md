@@ -16,7 +16,7 @@ available customizations and their default values.
 ```lisp
 (use-package fzf
   :bind
-    ;; Don't forget to set keybinds!
+    ;; Don't forget to set keybindings!
   :config
   (setq fzf/args "-x --color=bw --print-query --margin=1,0 --no-hscroll"
         fzf/executable "fzf"
@@ -191,6 +191,18 @@ On UNIX, fzf integration leverages the term.el package, which in turn leverages 
 Windows doesn't have a pseudo terminal concept. On Windows, processes communicate via pipes, so
 the path that fzf.el took on UNIX will not work on Windows. Therefore, on Windows we open an
 external cmd.exe to run fzf there and use temporary files to get the result back to Emacs.
+
+## Debugging
+
+After loading fzf.el, run
+
+```
+M-: (setq fzf-show-debug-messages t) RET
+or
+M-x eval-expression RET (setq fzf-show-debug-messages t) RET
+```
+
+You will then see messages in the `*Messages*` buffer as you run fzf commands.
 
 # license
 
