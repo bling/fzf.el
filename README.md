@@ -2,7 +2,7 @@
 
 An Emacs front-end for [fzf][1].
 
-![demo](https://cloud.githubusercontent.com/assets/306502/12380684/ca0a6648-bd46-11e5-9091-841b282874e4.gif)
+![demo](screencast/fzf_in_emacs.gif)
 
 # installation
 
@@ -16,9 +16,9 @@ available customizations and their default values.
 ```lisp
 (use-package fzf
   :bind
-    ;; Don't forget to set keybinds!
+    ;; Don't forget to set keybindings!
   :config
-  (setq fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
+  (setq fzf/args "-x --color=bw --print-query --margin=1,0 --no-hscroll"
         fzf/executable "fzf"
         fzf/git-grep-args "-i --line-number %s"
         ;; command used for `fzf-grep-*` functions
@@ -96,6 +96,113 @@ Or more exciting:
             (find-file f))))
     d)))
 ```
+
+## Interacting with the FZF buffer
+
+When you run one of the above commands, you will see an "FZF" buffer. For example, when
+using `M-x fzf`, you'll see a buffer that looks like:
+
+```
+ file1.ext
+ file2.ext
+ file3.ext
+ ....
+ > SELECTED-FILE            # RET (Enter) will open this file
+ 1580404/1580404            # Fuzzy find on my 1.6 million files
+ > PATTERN                  # You type a fuzzy pattern to find
+```
+The *PATTERN* you type will narrow the selected items. PATTERN is used to do
+[approximate string matching](https://en.wikipedia.org/wiki/Approximate_string_matching).
+The PATTERN syntax is not a regular expression. In the examples below, we used
+used `/regular expressions/` to illustrate the matching behavior. *The closest
+match is listed first*.
+
+
+| PATTERN&nbsp;&nbsp;&nbsp; | MATCH RESULT                                                                                                                                   |
+|:--------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `foo`                     | Match file paths containing `/foo/`, `/f.*oo/`, `/f.*o.*o/`, etc.                                                                              |
+| `foo bar`                 | Use spaces to specify multiple pattern terms, `foo bar` matches paths containing both terms, `/foo.*bar/`,  `/bar.*foo/`, `/f.*oo.*bar/`, etc. |
+| `'foo`                    | File paths containing exactly the string foo (`/foo/`)                                                                                         |
+| `!foo`                    | Negation, file paths that do not contain exact match, foo, in their name                                                                       |
+| `^foo/bar`                | An anchored match, a term prefixed with ^ means match files starting with foo/bar                                                              |
+| `.cpp$`                   | An anchored match, a term postfixed with $ means match files ending with .cpp                                                                  |
+| `.c$ \| .h$`              | OR operator, match paths ending in .c or .h                                                                                                    |
+
+For example, the pattern "`^apps/special 'foo !bar .c$ | .h$`" will match file paths starting with "apps/special"
+that contain the string "foo", not the string "bar", and end in ".c" or ".h".
+
+**Keys**
+
+The FZF buffer, which you use to fuzzy find, is based on the underlying code for `M-x
+ansi-term`. Most keys you type are sent to the fzf process. We've set the terminal escape key to
+`C-x`. Use `C-x C-h` to see the Emacs command key bindings in the FZF buffer. For example, you can
+maximize the FZF buffer window using `C-x 1` which closes the other windows in your Emacs frame, thus
+giving you bigger FZF buffer window for fuzzy finding.
+
+**Colors**
+
+The FZF buffer picks colors based on the way Emacs was invoked (terminal, light background window
+frame, or dark background window frame).  See the `fzf/args` defcustom to modify the colors or
+use black and white.
+
+**Colors in a terminal, emacs -nw**
+
+When running in a terminal, emacs -nw, and you have an Emacs theme (see `M-x customize-themes`),
+then the corresponding light or dark background color fzf setup will be used. Colors in Emacs work
+best when running in a terminal with 24-bit truecolor support. For example, on recent Linux with
+xterm-direct and Emacs 27 or later, this should give you truecolor in a terminal:
+
+```bash
+env TERM=xterm-direct emacs -nw
+```
+
+If you are running in a 256 color terminal, for example `env TERM=xterm-256color emacs -nw`, you may
+wish to use a less dark yellow. This code is robust to either a 256 or truecolor terminal:
+
+```lisp
+;; Fixup term.el colors when running in an old 256-bit color terminal (emacs -mw).  For example, in
+;; Emacs 27, term-color-yellow is "yellow3" which doesn't exist in 256-colors, so use "brightyellow"
+;; which does exist. Following is a no-op when running in a truecolor terminal.
+(eval-after-load 'term
+  '(when (not (display-graphic-p)) ;; In terminal, emacs -nw?
+     (let ((basic-color-alist
+            ;; (NAME . NEW_COLOR) pair. If color string of face, term-color-NAME, does not exist and
+            ;; and NEW_COLOR exists, update the face to use that.
+            '(("yellow" . "brightyellow") ;; term-color-yellow == yellow3, map to brightyellow?
+              ))
+           (tty-colors (tty-color-alist)))
+       (cl-loop for color-pair in basic-color-alist do
+                (let* ((ansi-color (car color-pair))
+                       (color-256 (cdr color-pair))
+                       (color-face (intern (concat "term-color-" ansi-color)))
+                       (term-color-string (face-attribute color-face :background)))
+                  ;; If the term-color-string doesn't exist, we are likely running with 256 colors,
+                  ;; in this case, use an color-256 if it exists.
+                  (when (and (not (assoc term-color-string tty-colors))
+                             (assoc color-256 tty-colors))
+                    (set-face-attribute color-face nil
+                                        :background color-256
+                                        :foreground color-256)))))))
+```
+
+## Windows Support
+
+On UNIX, fzf integration leverages the term.el package, which in turn leverages pty's and
+Windows doesn't have a pseudo terminal concept. On Windows, processes communicate via pipes, so
+the path that fzf.el took on UNIX will not work on Windows. Therefore, on Windows we open an
+external cmd.exe to run fzf there and use temporary files to get the result back to Emacs.
+
+## Debugging
+
+After loading fzf.el, run
+
+```
+M-: (setq fzf-show-debug-messages t) RET
+or
+M-x eval-expression RET (setq fzf-show-debug-messages t) RET
+```
+
+You will then see messages in the `*Messages*` buffer as you run fzf commands.
 
 # license
 
