@@ -991,7 +991,8 @@ note applies here."
   "Run FZF specific COMMAND in the VCS-NAME directory holding ROOT-FILENAME."
   (let ((fzf--target-validator (fzf--use-validator
                                 (function fzf--validate-filename)))
-        (path (locate-dominating-file default-directory root-filename)))
+        (current-directory (file-truename default-directory)) ;; Resolve symlinks
+        (path (locate-dominating-file current-directory root-filename)))
     (if path
         (fzf-with-command command (function fzf--action-find-file) path)
       (user-error "Not inside a %s repository" vcs-name))))
