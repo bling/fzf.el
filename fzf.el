@@ -244,6 +244,25 @@ If nil, fzf prompts have the same history in all modes."
   :safe #'booleanp
   :group 'fzf)
 
+(defcustom fzf/position-bottom-of-frame nil
+  "Set the position of the fzf to always be at the bottom of the frame."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'fzf)
+
+(defun fzf/position-bottom-of-frame-watcher (symbol newval operation where)
+  "Watcher function for `fzf/position-bottom-of-frame`.
+Updates settings for displaying fzf at the bottom of the Emacs frame."
+  (if newval
+      (add-to-list 'display-buffer-alist
+                   `("\\*fzf\\*"
+                     display-buffer-at-bottom
+                     (window-height . ,fzf/window-height)))
+    (setq display-buffer-alist
+          (assq-delete-all "\\*fzf\\*" display-buffer-alist))))
+
+(add-variable-watcher 'fzf/position-bottom-of-frame #'fzf/position-bottom-of-frame-watcher)
+
 (defconst fzf/buffer-name "*fzf*"
   "The name of the fzf buffer")
 
@@ -539,11 +558,17 @@ The returned lambda requires extra context information:
          (sh-cmd (concat fzf/executable " " args)))
     (with-current-buffer buf
       (setq default-directory (or directory "")))
-    (split-window-vertically window-height)
+
+    (unless fzf/position-bottom-of-frame
+      (split-window-vertically window-height))
+    
     (when fzf/position-bottom (other-window 1))
     (make-term (file-name-nondirectory fzf/executable)
                "sh" nil "-c" sh-cmd)
-    (switch-to-buffer buf)
+
+    (if fzf/position-bottom-of-frame
+        (pop-to-buffer buf)
+      (switch-to-buffer buf))
 
     ;; Disable minor modes that interfere with rendering while fzf is running
     ;; TODO: provide ability to modify the set of actions in the user-option
