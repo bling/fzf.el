@@ -250,19 +250,6 @@ If nil, fzf prompts have the same history in all modes."
   :safe #'booleanp
   :group 'fzf)
 
-(defun fzf/position-bottom-of-frame-watcher (symbol newval operation where)
-  "Watcher function for `fzf/position-bottom-of-frame`.
-Updates settings for displaying fzf at the bottom of the Emacs frame."
-  (if newval
-      (add-to-list 'display-buffer-alist
-                   `("\\*fzf\\*"
-                     display-buffer-at-bottom
-                     (window-height . ,fzf/window-height)))
-    (setq display-buffer-alist
-          (assq-delete-all "\\*fzf\\*" display-buffer-alist))))
-
-(add-variable-watcher 'fzf/position-bottom-of-frame #'fzf/position-bottom-of-frame-watcher)
-
 (defconst fzf/buffer-name "*fzf*"
   "The name of the fzf buffer")
 
@@ -360,6 +347,21 @@ including file names with embedded colons.
 See `fzf--file-lnum-regexp' and `fzf--file-rnum-lnum-regexp' as examples.")
 
 ;; ---------------------------------------------------------------------------
+
+;; Internal helper function
+(defun fzf--position-bottom-of-frame-watcher (_symbol newval _operation _where)
+  "Watcher function for `fzf/position-bottom-of-frame'.
+Updates settings for displaying fzf at the bottom of the Emacs frame."
+  (if newval
+      (add-to-list 'display-buffer-alist
+                   `("\\*fzf\\*"
+                     display-buffer-at-bottom
+                     (window-height . ,fzf/window-height)))
+    (setq display-buffer-alist
+          (assq-delete-all "\\*fzf\\*" display-buffer-alist))))
+
+(add-variable-watcher 'fzf/position-bottom-of-frame #'fzf--position-bottom-of-frame-watcher)
+
 ;; Internal helper function
 (defun fzf--read-for (operation prompt)
   "Prompt in minibuffer for OPERATION with PROMPT and history. Return entry.

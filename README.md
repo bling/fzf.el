@@ -28,7 +28,7 @@ available customizations and their default values.
         ;; If nil, the fzf buffer will appear at the top of the window
         fzf/position-bottom t
         ;; If t, the fzf buffer will appear at the bottom of the frame
-        fzf/position-bottom nil
+        fzf/position-bottom-of-frame nil
         fzf/window-height 15))
 ```
 
