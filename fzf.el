@@ -350,8 +350,8 @@ See `fzf--file-lnum-regexp' and `fzf--file-rnum-lnum-regexp' as examples.")
 
 ;; Internal helper function
 (defun fzf--position-bottom-of-frame-watcher (_symbol newval _operation _where)
-  "Watcher function for `fzf/position-bottom-of-frame'.
-Updates settings for displaying fzf at the bottom of the Emacs frame."
+  "Watch for changes of `fzf/position-bottom-of-frame'.
+Update settings for displaying fzf at the bottom of the Emacs frame."
   (if newval
       (add-to-list 'display-buffer-alist
                    `("\\*fzf\\*"
