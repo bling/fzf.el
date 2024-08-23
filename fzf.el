@@ -347,20 +347,13 @@ including file names with embedded colons.
 See `fzf--file-lnum-regexp' and `fzf--file-rnum-lnum-regexp' as examples.")
 
 ;; ---------------------------------------------------------------------------
-
 ;; Internal helper function
-(defun fzf--position-bottom-of-frame-watcher (_symbol newval _operation _where)
-  "Watch for changes of `fzf/position-bottom-of-frame'.
-Update settings for displaying fzf at the bottom of the Emacs frame."
-  (if newval
-      (add-to-list 'display-buffer-alist
-                   `("\\*fzf\\*"
-                     display-buffer-at-bottom
-                     (window-height . ,fzf/window-height)))
-    (setq display-buffer-alist
-          (assq-delete-all "\\*fzf\\*" display-buffer-alist))))
-
-(add-variable-watcher 'fzf/position-bottom-of-frame #'fzf--position-bottom-of-frame-watcher)
+(defun fzf--move-to-bottom-window ()
+  "Move point to the bottom-most window of the current frame."
+  (condition-case nil
+      (while 1
+        (windmove-down 0))
+    (error nil)))
 
 ;; Internal helper function
 (defun fzf--read-for (operation prompt)
@@ -554,30 +547,29 @@ The returned lambda requires extra context information:
                                                   fzf--extractor-list))
   (let* ((term-exec-hook nil)
          (buf (get-buffer-create fzf/buffer-name))
-         (min-height (min fzf/window-height (/ (window-height) 2)))
+         (min-height (min fzf/window-height
+                          (/ (progn (when fzf/position-bottom-of-frame
+                                     (fzf--move-to-bottom-window))
+                                   (window-height))
+                             2)))
          (window-height (if fzf/position-bottom (- min-height) min-height))
          (args (or custom-args fzf/args))
          (sh-cmd (concat fzf/executable " " args)))
     (with-current-buffer buf
       (setq default-directory (or directory "")))
-
-    (unless fzf/position-bottom-of-frame
-      (split-window-vertically window-height))
-    
+     (split-window-vertically window-height)
     (when fzf/position-bottom (other-window 1))
     (make-term (file-name-nondirectory fzf/executable)
                "sh" nil "-c" sh-cmd)
-
-    (if fzf/position-bottom-of-frame
-        (pop-to-buffer buf)
-      (switch-to-buffer buf))
+    (switch-to-buffer buf)
 
     ;; Disable minor modes that interfere with rendering while fzf is running
     ;; TODO: provide ability to modify the set of actions in the user-option
     ;;       to allow compatibility with more minor modes instead of using
     ;;       this hard coded set.
     (and (fboundp 'turn-off-evil-mode) (turn-off-evil-mode))
-    (when (bound-and-true-p linum-mode)
+    (when (and (fboundp 'linum-mode)
+               (bound-and-true-p linum-mode))
       (linum-mode 0))
     (when (bound-and-true-p visual-line-mode)
       (visual-line-mode 0))
