@@ -773,7 +773,7 @@ Example usage:
     (fzf-with-entries
      (seq-filter
       (lambda (x) (not (string-prefix-p " " x)))
-      (mapcar (function buffer-name) (buffer-list)))
+      (mapcar (function buffer-name) (remove (current-buffer) (buffer-list))))
      (lambda (x) (set-window-buffer nil x)))))
 
 
