@@ -121,6 +121,11 @@
   :type 'integer
   :group 'fzf)
 
+(defcustom fzf/maximize nil
+  "If non-nil the fzf buffer fills the frame"
+  :type 'boolean
+  :group 'fzf)
+
 (defcustom fzf/executable "fzf"
   "The name of the fzf executable.
 
@@ -539,8 +544,9 @@ The returned lambda requires extra context information:
          (sh-cmd (concat fzf/executable " " args)))
     (with-current-buffer buf
       (setq default-directory (or directory "")))
-    (split-window-vertically window-height)
-    (when fzf/position-bottom (other-window 1))
+    (unless fzf/maximize
+      (split-window-vertically window-height)
+      (when fzf/position-bottom (other-window 1)))
     (make-term (file-name-nondirectory fzf/executable)
                "sh" nil "-c" sh-cmd)
     (switch-to-buffer buf)
