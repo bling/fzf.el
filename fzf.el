@@ -488,11 +488,15 @@ The returned lambda requires extra context information:
     (let* ((exit-code (fzf--exit-code-from-event msg))
            (text (fzf--text-only-for (point-min) (point-max)))
            (lines (split-string text "\n" t "\s*>\s+"))
+	   (orig-target (car (last (butlast lines))))
            (target (string-trim
-                    (concat
-                     (when directory
-                       (file-name-as-directory directory))
-                     (car (last (butlast lines)))))))
+		    (if (or (string-equal (substring orig-target 0 1) "~")
+			    (string-equal (substring orig-target 0 1) "/"))
+			orig-target
+                      (concat
+                       (when directory
+			 (file-name-as-directory directory))
+                       orig-target)))))
       (setq target (funcall target-validator target text msg process-name))
       ;; Kill the fzf buffer and restore the previous window configuration.
       (kill-buffer fzf/buffer-name)
