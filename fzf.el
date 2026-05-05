@@ -385,6 +385,8 @@ file pattern specified by `fzf/grep-file-pattern'."
                               (t "F"))))
     (fzf---grep-file-pattern-for)))
 
+(declare-function ansi-color-filter-region "ansi-color") ; prevent native-compiler warning
+
 ;; Internal helper function
 (defun fzf--text-only-for (region-begin region-end)
   "Filter away display buffer text attributes and ANSI color escape sequences.
@@ -516,6 +518,7 @@ The returned lambda requires extra context information:
 
 (defvar term-exec-hook)               ; prevent byte-compiler warning
 (defvar term-suppress-hard-newline)   ; prevent byte-compiler warning
+(declare-function linum-mode "linum") ; prevent native-compiler warning
 
 ;; Internal helper function
 (defun fzf--start (directory action &optional custom-args)
